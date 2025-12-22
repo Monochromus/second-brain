@@ -19,14 +19,18 @@ const agentRoutes = require('./routes/agent');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+const corsOrigins = process.env.NODE_ENV === 'production'
+  ? (process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : [])
+  : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174', 'http://127.0.0.1:5175'];
+
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? false
-    : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174', 'http://127.0.0.1:5175'],
+  origin: corsOrigins.length > 0 ? corsOrigins : false,
   credentials: true
 }));
 
 app.use(express.json({ limit: '10mb' }));
+
+app.set('trust proxy', 1);
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'development-secret-change-in-production',
@@ -36,7 +40,7 @@ app.use(session({
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
     maxAge: 7 * 24 * 60 * 60 * 1000,
-    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax'
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
   }
 }));
 
