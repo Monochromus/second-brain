@@ -1,11 +1,11 @@
-# Render.com Blueprint for Second Brain Backend
+# Render.com Blueprint for Second Brain (Full-Stack)
 services:
   - type: web
     name: second-brain-api
     runtime: node
     region: frankfurt
     plan: free
-    buildCommand: npm install
+    buildCommand: npm install && cd client && npm install && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
@@ -14,12 +14,6 @@ services:
       - key: SESSION_SECRET
         generateValue: true
       - key: DATABASE_PATH
-        value: /data/secondbrain.db
-      - key: OPENAI_API_KEY
-        sync: false
+        value: ./data/secondbrain.db
       - key: OPENAI_MODEL
         value: gpt-4o
-    disk:
-      name: data
-      mountPath: /data
-      sizeGB: 1
