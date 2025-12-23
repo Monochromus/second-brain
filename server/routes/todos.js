@@ -8,7 +8,7 @@ const router = express.Router();
 router.use(requireAuth);
 
 router.get('/', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { status, project_id, priority, due_before, limit } = req.query;
 
   let query = 'SELECT * FROM todos WHERE user_id = ?';
@@ -51,7 +51,7 @@ router.get('/', asyncHandler(async (req, res) => {
 }));
 
 router.get('/:id', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { id } = req.params;
 
   const todo = db.prepare('SELECT * FROM todos WHERE id = ? AND user_id = ?')
@@ -71,7 +71,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
 }));
 
 router.post('/', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { title, description, priority, status, due_date, due_time, project_id, position } = req.body;
 
   if (!title || !title.trim()) {
@@ -103,7 +103,7 @@ router.post('/', asyncHandler(async (req, res) => {
 }));
 
 router.put('/:id', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { id } = req.params;
   const { title, description, priority, status, due_date, due_time, project_id, position } = req.body;
 
@@ -165,7 +165,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
 }));
 
 router.put('/:id/complete', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { id } = req.params;
 
   const existing = db.prepare('SELECT * FROM todos WHERE id = ? AND user_id = ?')
@@ -185,7 +185,7 @@ router.put('/:id/complete', asyncHandler(async (req, res) => {
 }));
 
 router.put('/reorder', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { items } = req.body;
 
   if (!Array.isArray(items)) {
@@ -205,7 +205,7 @@ router.put('/reorder', asyncHandler(async (req, res) => {
 }));
 
 router.delete('/:id', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { id } = req.params;
 
   const existing = db.prepare('SELECT * FROM todos WHERE id = ? AND user_id = ?')

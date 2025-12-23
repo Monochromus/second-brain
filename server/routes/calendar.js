@@ -9,7 +9,7 @@ const router = express.Router();
 router.use(requireAuth);
 
 router.get('/events', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { start_date, end_date, source } = req.query;
 
   let query = 'SELECT * FROM calendar_events WHERE user_id = ?';
@@ -43,7 +43,7 @@ router.get('/events', asyncHandler(async (req, res) => {
 }));
 
 router.get('/events/:id', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { id } = req.params;
 
   const event = db.prepare('SELECT * FROM calendar_events WHERE id = ? AND user_id = ?')
@@ -69,7 +69,7 @@ router.get('/events/:id', asyncHandler(async (req, res) => {
 }));
 
 router.post('/events', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { title, description, start_time, end_time, location, is_all_day, project_id, calendar_source } = req.body;
 
   if (!title || !title.trim()) {
@@ -107,7 +107,7 @@ router.post('/events', asyncHandler(async (req, res) => {
 }));
 
 router.put('/events/:id', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { id } = req.params;
   const { title, description, start_time, end_time, location, is_all_day, project_id } = req.body;
 
@@ -171,7 +171,7 @@ router.put('/events/:id', asyncHandler(async (req, res) => {
 }));
 
 router.delete('/events/:id', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { id } = req.params;
 
   const existing = db.prepare('SELECT * FROM calendar_events WHERE id = ? AND user_id = ?')
@@ -190,7 +190,7 @@ router.delete('/events/:id', asyncHandler(async (req, res) => {
 }));
 
 router.get('/connections', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
 
   const connections = db.prepare('SELECT id, provider, calendar_url, is_active, last_sync FROM calendar_connections WHERE user_id = ?')
     .all(userId);
@@ -204,7 +204,7 @@ router.get('/connections', asyncHandler(async (req, res) => {
 }));
 
 router.post('/connections', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { provider, calendar_url, username, password } = req.body;
 
   if (!provider || !calendar_url) {
@@ -241,7 +241,7 @@ router.post('/connections', asyncHandler(async (req, res) => {
 }));
 
 router.delete('/connections/:id', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { id } = req.params;
 
   const existing = db.prepare('SELECT * FROM calendar_connections WHERE id = ? AND user_id = ?')
@@ -257,7 +257,7 @@ router.delete('/connections/:id', asyncHandler(async (req, res) => {
 }));
 
 router.post('/sync', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
 
   try {
     const result = await syncCalendar(userId);

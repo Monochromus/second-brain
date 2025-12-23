@@ -8,7 +8,7 @@ const router = express.Router();
 router.use(requireAuth);
 
 router.get('/', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { status } = req.query;
 
   let query = 'SELECT * FROM projects WHERE user_id = ?';
@@ -49,7 +49,7 @@ router.get('/', asyncHandler(async (req, res) => {
 }));
 
 router.get('/:id', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { id } = req.params;
 
   const project = db.prepare('SELECT * FROM projects WHERE id = ? AND user_id = ?')
@@ -103,7 +103,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
 }));
 
 router.post('/', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { name, description, color, status, deadline, position } = req.body;
 
   if (!name || !name.trim()) {
@@ -144,7 +144,7 @@ router.post('/', asyncHandler(async (req, res) => {
 }));
 
 router.put('/:id', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { id } = req.params;
   const { name, description, color, status, deadline, position } = req.body;
 
@@ -219,7 +219,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
 }));
 
 router.put('/reorder', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { items } = req.body;
 
   if (!Array.isArray(items)) {
@@ -239,7 +239,7 @@ router.put('/reorder', asyncHandler(async (req, res) => {
 }));
 
 router.delete('/:id', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { id } = req.params;
 
   const existing = db.prepare('SELECT * FROM projects WHERE id = ? AND user_id = ?')

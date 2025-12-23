@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const db = require('../config/database');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { validateEmail } = require('../utils/helpers');
+const { generateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -37,8 +38,11 @@ router.post('/register', asyncHandler(async (req, res) => {
   const user = db.prepare('SELECT id, email, name, created_at, settings FROM users WHERE id = ?')
     .get(result.lastInsertRowid);
 
+  const token = generateToken(user.id);
+
   res.status(201).json({
     message: 'Registrierung erfolgreich.',
+    token,
     user: {
       id: user.id,
       email: user.email,
@@ -69,8 +73,11 @@ router.post('/login', asyncHandler(async (req, res) => {
 
   req.session.userId = user.id;
 
+  const token = generateToken(user.id);
+
   res.json({
     message: 'Login erfolgreich.',
+    token,
     user: {
       id: user.id,
       email: user.email,
@@ -91,15 +98,38 @@ router.post('/logout', (req, res) => {
 });
 
 router.get('/me', asyncHandler(async (req, res) => {
-  if (!req.session.userId) {
+  const { requireAuth } = require('../middleware/auth');
+
+  // Check JWT token first
+  const authHeader = req.headers.authorization;
+  let userId = null;
+
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const jwt = require('jsonwebtoken');
+    const { JWT_SECRET } = require('../middleware/auth');
+    const token = authHeader.substring(7);
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      userId = decoded.userId;
+    } catch (err) {
+      // Token invalid
+    }
+  }
+
+  // Fallback to session
+  if (!userId && req.session.userId) {
+    userId = req.session.userId;
+  }
+
+  if (!userId) {
     return res.status(401).json({ error: 'Nicht eingeloggt.' });
   }
 
   const user = db.prepare('SELECT id, email, name, created_at, settings FROM users WHERE id = ?')
-    .get(req.session.userId);
+    .get(userId);
 
   if (!user) {
-    req.session.destroy();
+    if (req.session) req.session.destroy();
     return res.status(401).json({ error: 'Benutzer nicht gefunden.' });
   }
 
@@ -114,12 +144,32 @@ router.get('/me', asyncHandler(async (req, res) => {
 }));
 
 router.put('/settings', asyncHandler(async (req, res) => {
-  if (!req.session.userId) {
+  // Check JWT token first
+  const authHeader = req.headers.authorization;
+  let userId = null;
+
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const jwt = require('jsonwebtoken');
+    const { JWT_SECRET } = require('../middleware/auth');
+    const token = authHeader.substring(7);
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      userId = decoded.userId;
+    } catch (err) {
+      // Token invalid
+    }
+  }
+
+  // Fallback to session
+  if (!userId && req.session && req.session.userId) {
+    userId = req.session.userId;
+  }
+
+  if (!userId) {
     return res.status(401).json({ error: 'Nicht eingeloggt.' });
   }
 
   const { name, settings, currentPassword, newPassword } = req.body;
-  const userId = req.session.userId;
 
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
 

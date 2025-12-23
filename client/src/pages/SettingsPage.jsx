@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { User, Key, Calendar, Palette, RefreshCw } from 'lucide-react';
+import { User, Key, Calendar, Palette, RefreshCw, Bot, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
 import { useCalendarConnections } from '../hooks/useCalendar';
@@ -16,6 +16,11 @@ export default function SettingsPage() {
     email: user?.email || ''
   });
 
+  const [apiKeyForm, setApiKeyForm] = useState({
+    openaiApiKey: user?.settings?.openaiApiKey || ''
+  });
+  const [showApiKey, setShowApiKey] = useState(false);
+
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
@@ -31,6 +36,7 @@ export default function SettingsPage() {
 
   const [saving, setSaving] = useState({
     profile: false,
+    apiKey: false,
     password: false,
     calendar: false
   });
@@ -42,6 +48,25 @@ export default function SettingsPage() {
       await updateSettings({ name: profileForm.name });
     } finally {
       setSaving({ ...saving, profile: false });
+    }
+  };
+
+  const handleSaveApiKey = async (e) => {
+    e.preventDefault();
+    setSaving({ ...saving, apiKey: true });
+    try {
+      const currentSettings = user?.settings || {};
+      await updateSettings({
+        settings: {
+          ...currentSettings,
+          openaiApiKey: apiKeyForm.openaiApiKey
+        }
+      });
+      toast.success('API-Key gespeichert');
+    } catch (error) {
+      toast.error('Fehler beim Speichern des API-Keys');
+    } finally {
+      setSaving({ ...saving, apiKey: false });
     }
   };
 
@@ -137,6 +162,60 @@ export default function SettingsPage() {
               className="btn btn-primary"
             >
               {saving.profile ? 'Speichere...' : 'Speichern'}
+            </button>
+          </form>
+        </div>
+
+        {/* OpenAI API Key Section */}
+        <div className="card p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
+              <Bot className="w-5 h-5 text-accent" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-text-primary">KI-Assistent</h2>
+              <p className="text-sm text-text-secondary">Konfiguriere deinen OpenAI API-Zugang</p>
+            </div>
+          </div>
+
+          <form onSubmit={handleSaveApiKey} className="space-y-4">
+            <div>
+              <label className="label">OpenAI API-Key</label>
+              <div className="relative">
+                <input
+                  type={showApiKey ? 'text' : 'password'}
+                  value={apiKeyForm.openaiApiKey}
+                  onChange={(e) => setApiKeyForm({ ...apiKeyForm, openaiApiKey: e.target.value })}
+                  className="input pr-10"
+                  placeholder="sk-..."
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary"
+                >
+                  {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-xs text-text-secondary mt-1">
+                Du benötigst einen API-Key von{' '}
+                <a
+                  href="https://platform.openai.com/api-keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent hover:underline"
+                >
+                  platform.openai.com
+                </a>
+                {' '}um den KI-Assistenten zu nutzen.
+              </p>
+            </div>
+            <button
+              type="submit"
+              disabled={saving.apiKey}
+              className="btn btn-primary"
+            >
+              {saving.apiKey ? 'Speichere...' : 'API-Key speichern'}
             </button>
           </form>
         </div>

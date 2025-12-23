@@ -8,7 +8,7 @@ const router = express.Router();
 router.use(requireAuth);
 
 router.get('/', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { project_id, tags, search, limit } = req.query;
 
   let query = 'SELECT * FROM notes WHERE user_id = ?';
@@ -55,7 +55,7 @@ router.get('/', asyncHandler(async (req, res) => {
 }));
 
 router.get('/:id', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { id } = req.params;
 
   const note = db.prepare('SELECT * FROM notes WHERE id = ? AND user_id = ?')
@@ -82,7 +82,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
 }));
 
 router.post('/', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { title, content, tags, color, is_pinned, project_id, position } = req.body;
 
   if (!title || !title.trim()) {
@@ -120,7 +120,7 @@ router.post('/', asyncHandler(async (req, res) => {
 }));
 
 router.put('/:id', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { id } = req.params;
   const { title, content, tags, color, is_pinned, project_id, position } = req.body;
 
@@ -185,7 +185,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
 }));
 
 router.put('/:id/pin', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { id } = req.params;
 
   const existing = db.prepare('SELECT * FROM notes WHERE id = ? AND user_id = ?')
@@ -212,7 +212,7 @@ router.put('/:id/pin', asyncHandler(async (req, res) => {
 }));
 
 router.put('/reorder', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { items } = req.body;
 
   if (!Array.isArray(items)) {
@@ -232,7 +232,7 @@ router.put('/reorder', asyncHandler(async (req, res) => {
 }));
 
 router.delete('/:id', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { id } = req.params;
 
   const existing = db.prepare('SELECT * FROM notes WHERE id = ? AND user_id = ?')

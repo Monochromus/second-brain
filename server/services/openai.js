@@ -1,9 +1,31 @@
 const OpenAI = require('openai');
 const db = require('../config/database');
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+// Get user's API key from settings
+function getUserApiKey(userId) {
+  const user = db.prepare('SELECT settings FROM users WHERE id = ?').get(userId);
+  if (user && user.settings) {
+    try {
+      const settings = JSON.parse(user.settings);
+      return settings.openaiApiKey || null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+// Create OpenAI client with user's API key or fallback to environment variable
+function createOpenAIClient(userId) {
+  const userApiKey = getUserApiKey(userId);
+  const apiKey = userApiKey || process.env.OPENAI_API_KEY;
+
+  if (!apiKey || apiKey === 'sk-your-openai-api-key-here') {
+    return null;
+  }
+
+  return new OpenAI({ apiKey });
+}
 
 const SYSTEM_PROMPT = `Du bist der AI-Assistent im "Second Brain" Produktivitätstool.
 Du hilfst dem Nutzer, Aufgaben zu organisieren, Termine zu planen und Notizen zu verwalten.
@@ -620,9 +642,11 @@ async function executeToolCall(toolName, args, userId) {
 }
 
 async function processAgentRequest(message, userId) {
-  if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'sk-your-openai-api-key-here') {
+  const openai = createOpenAIClient(userId);
+
+  if (!openai) {
     return {
-      response: 'OpenAI API-Key nicht konfiguriert. Bitte in den Einstellungen hinterlegen.',
+      response: 'OpenAI API-Key nicht konfiguriert. Bitte in den Einstellungen unter "KI-Assistent" deinen API-Key hinterlegen.',
       actions: []
     };
   }

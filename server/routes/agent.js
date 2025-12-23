@@ -8,7 +8,7 @@ const router = express.Router();
 router.use(requireAuth);
 
 router.post('/chat', asyncHandler(async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   const { message } = req.body;
 
   if (!message || !message.trim()) {

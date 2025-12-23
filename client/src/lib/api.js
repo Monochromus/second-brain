@@ -1,5 +1,7 @@
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
+const TOKEN_KEY = 'secondbrain_token';
+
 class ApiError extends Error {
   constructor(message, status) {
     super(message);
@@ -8,8 +10,26 @@ class ApiError extends Error {
   }
 }
 
+// Token management
+export function getToken() {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token) {
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
+  }
+}
+
+export function clearToken() {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
 async function request(endpoint, options = {}) {
   const url = `${API_BASE}${endpoint}`;
+  const token = getToken();
 
   const config = {
     ...options,
@@ -20,6 +40,11 @@ async function request(endpoint, options = {}) {
     credentials: 'include',
   };
 
+  // Add Authorization header if token exists
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`;
+  }
+
   if (options.body && typeof options.body === 'object') {
     config.body = JSON.stringify(options.body);
   }
@@ -29,6 +54,10 @@ async function request(endpoint, options = {}) {
     const data = await response.json();
 
     if (!response.ok) {
+      // Clear token on 401 (unauthorized)
+      if (response.status === 401) {
+        clearToken();
+      }
       throw new ApiError(data.error || 'Ein Fehler ist aufgetreten', response.status);
     }
 

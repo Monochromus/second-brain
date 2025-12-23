@@ -1,5 +1,5 @@
 import { createContext, useState, useEffect, useCallback } from 'react';
-import { api } from '../lib/api';
+import { api, setToken, clearToken, getToken } from '../lib/api';
 import toast from 'react-hot-toast';
 
 export const AuthContext = createContext(null);
@@ -9,11 +9,19 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   const checkAuth = useCallback(async () => {
+    // Only check auth if we have a token
+    const token = getToken();
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await api.get('/auth/me');
       setUser(response.user);
     } catch (error) {
       setUser(null);
+      clearToken();
     } finally {
       setLoading(false);
     }
@@ -26,6 +34,10 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     try {
       const response = await api.post('/auth/login', { email, password });
+      // Save the JWT token
+      if (response.token) {
+        setToken(response.token);
+      }
       setUser(response.user);
       toast.success('Erfolgreich eingeloggt!');
       return { success: true };
@@ -38,6 +50,10 @@ export function AuthProvider({ children }) {
   const register = async (email, password, name) => {
     try {
       const response = await api.post('/auth/register', { email, password, name });
+      // Save the JWT token
+      if (response.token) {
+        setToken(response.token);
+      }
       setUser(response.user);
       toast.success('Registrierung erfolgreich!');
       return { success: true };
@@ -50,10 +66,12 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     try {
       await api.post('/auth/logout');
-      setUser(null);
-      toast.success('Erfolgreich ausgeloggt');
     } catch (error) {
+      // Ignore logout errors
+    } finally {
       setUser(null);
+      clearToken();
+      toast.success('Erfolgreich ausgeloggt');
     }
   };
 
