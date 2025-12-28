@@ -60,7 +60,13 @@ export function useTodos(options = {}) {
     try {
       const response = await api.put(`/todos/${id}/complete`);
       setTodos((prev) => prev.map((t) => (t.id === id ? response.todo : t)));
-      return response.todo;
+
+      // Show notification if project was auto-completed
+      if (response.projectCompleted) {
+        toast.success('Projekt abgeschlossen! Alle Todos erledigt.');
+      }
+
+      return response;
     } catch (err) {
       toast.error(err.message);
       throw err;

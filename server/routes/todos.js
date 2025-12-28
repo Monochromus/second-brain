@@ -181,7 +181,40 @@ router.put('/:id/complete', asyncHandler(async (req, res) => {
 
   const todo = db.prepare('SELECT * FROM todos WHERE id = ?').get(id);
 
-  res.json({ todo, message: newStatus === 'done' ? 'Todo abgeschlossen.' : 'Todo wieder geöffnet.' });
+  let projectCompleted = false;
+
+  // Auto-complete project if all todos are done
+  if (newStatus === 'done' && existing.project_id) {
+    const projectTodos = db.prepare(`
+      SELECT COUNT(*) as total,
+             SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as completed
+      FROM todos WHERE project_id = ?
+    `).get(existing.project_id);
+
+    // All todos in project are done
+    if (projectTodos.total > 0 && projectTodos.total === projectTodos.completed) {
+      const project = db.prepare('SELECT status FROM projects WHERE id = ?').get(existing.project_id);
+      // Only auto-complete if project is currently active
+      if (project && project.status === 'active') {
+        db.prepare('UPDATE projects SET status = ? WHERE id = ?').run('completed', existing.project_id);
+        projectCompleted = true;
+      }
+    }
+  }
+
+  // Re-open project if a todo is reopened
+  if (newStatus === 'open' && existing.project_id) {
+    const project = db.prepare('SELECT status FROM projects WHERE id = ?').get(existing.project_id);
+    if (project && project.status === 'completed') {
+      db.prepare('UPDATE projects SET status = ? WHERE id = ?').run('active', existing.project_id);
+    }
+  }
+
+  res.json({
+    todo,
+    projectCompleted,
+    message: newStatus === 'done' ? 'Todo abgeschlossen.' : 'Todo wieder geöffnet.'
+  });
 }));
 
 router.put('/reorder', asyncHandler(async (req, res) => {

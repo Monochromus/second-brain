@@ -61,21 +61,25 @@ export default function TodoItem({
 
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
-          <p
+          <button
+            onClick={() => onEdit(todo)}
             className={cn(
-              'text-sm font-medium text-text-primary',
+              'text-sm font-medium text-text-primary text-left hover:text-accent transition-colors',
               todo.status === 'done' && 'line-through'
             )}
           >
             {todo.title}
-          </p>
+          </button>
           <PriorityBadge priority={todo.priority} />
         </div>
 
         {todo.description && (
-          <p className="text-xs text-text-secondary mt-1 line-clamp-2">
+          <button
+            onClick={() => onEdit(todo)}
+            className="text-xs text-text-secondary mt-1 line-clamp-2 text-left hover:text-accent transition-colors"
+          >
             {todo.description}
-          </p>
+          </button>
         )}
 
         <div className="flex items-center gap-3 mt-2 flex-wrap">

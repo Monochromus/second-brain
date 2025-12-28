@@ -515,10 +515,46 @@ async function executeToolCall(toolName, args, userId) {
         const newStatus = existing.status === 'done' ? 'open' : 'done';
         db.prepare('UPDATE todos SET status = ? WHERE id = ?').run(newStatus, args.id);
         const todo = db.prepare('SELECT * FROM todos WHERE id = ?').get(args.id);
+
+        let projectCompleted = false;
+        let projectName = null;
+
+        // Auto-complete project if all todos are done
+        if (newStatus === 'done' && existing.project_id) {
+          const projectTodos = db.prepare(`
+            SELECT COUNT(*) as total,
+                   SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as completed
+            FROM todos WHERE project_id = ?
+          `).get(existing.project_id);
+
+          if (projectTodos.total > 0 && projectTodos.total === projectTodos.completed) {
+            const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(existing.project_id);
+            if (project && project.status === 'active') {
+              db.prepare('UPDATE projects SET status = ? WHERE id = ?').run('completed', existing.project_id);
+              projectCompleted = true;
+              projectName = project.name;
+            }
+          }
+        }
+
+        // Re-open project if a todo is reopened
+        if (newStatus === 'open' && existing.project_id) {
+          const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(existing.project_id);
+          if (project && project.status === 'completed') {
+            db.prepare('UPDATE projects SET status = ? WHERE id = ?').run('active', existing.project_id);
+          }
+        }
+
+        let message = newStatus === 'done' ? `"${todo.title}" als erledigt markiert.` : `"${todo.title}" wieder geöffnet.`;
+        if (projectCompleted) {
+          message += ` Projekt "${projectName}" wurde automatisch abgeschlossen!`;
+        }
+
         return {
           success: true,
           todo,
-          message: newStatus === 'done' ? `"${todo.title}" als erledigt markiert.` : `"${todo.title}" wieder geöffnet.`
+          projectCompleted,
+          message
         };
       }
 
