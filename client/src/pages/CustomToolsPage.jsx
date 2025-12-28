@@ -1,25 +1,23 @@
 import { useState, useMemo } from 'react';
-import { Wrench } from 'lucide-react';
+import { Wrench, Info } from 'lucide-react';
 import { useCustomTools } from '../hooks/useCustomTools';
 import { useAgent } from '../hooks/useAgent';
-import ToolDesigner from '../components/customTools/ToolDesigner';
-import ToolCard from '../components/customTools/ToolCard';
-import ToolExecutionView from '../components/customTools/ToolExecutionView';
+import ToolContainer from '../components/customTools/ToolContainer';
+import EmptyContainer from '../components/customTools/EmptyContainer';
 import ToolModal from '../components/customTools/ToolModal';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
+
+const MAX_CONTAINERS = 3;
 
 export default function CustomToolsPage() {
   const {
     tools,
     loading,
-    limits,
     generateTool,
     executeTool,
     updateTool,
     deleteTool,
-    updateParameters,
-    subscribeTool,
-    unsubscribeTool
+    updateParameters
   } = useCustomTools();
 
   // Agent integration for refresh
@@ -27,30 +25,18 @@ export default function CustomToolsPage() {
   useAgent(refreshCallbacks);
 
   // UI state
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [selectedTool, setSelectedTool] = useState(null);
+  const [generatingIndex, setGeneratingIndex] = useState(null);
   const [editModal, setEditModal] = useState({ open: false, tool: null });
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null });
-  const [executionView, setExecutionView] = useState({ open: false, tool: null });
 
-  // Handle tool generation
-  const handleGenerate = async (description, name) => {
-    setIsGenerating(true);
+  // Handle tool generation from a specific container
+  const handleGenerate = async (description, containerIndex) => {
+    setGeneratingIndex(containerIndex);
     try {
-      await generateTool(description, name);
+      await generateTool(description);
     } finally {
-      setIsGenerating(false);
+      setGeneratingIndex(null);
     }
-  };
-
-  // Handle tool execution
-  const handleExecute = async (toolId, parameters) => {
-    // Find the tool to open execution view
-    const tool = tools.find(t => t.id === toolId);
-    if (tool) {
-      setExecutionView({ open: true, tool });
-    }
-    return executeTool(toolId, parameters);
   };
 
   // Handle tool edit
@@ -77,15 +63,17 @@ export default function CustomToolsPage() {
     await updateTool(toolId, { description, regenerate: true });
   };
 
+  // Calculate how many empty slots to show
+  const emptySlots = Math.max(0, MAX_CONTAINERS - tools.length);
+
   // Loading state
   if (loading && tools.length === 0) {
     return (
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="h-8 w-48 skeleton rounded" />
-        <div className="h-48 skeleton rounded-xl" />
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {[1, 2, 3].map(i => (
-            <div key={i} className="h-40 skeleton rounded-xl" />
+            <div key={i} className="h-72 skeleton rounded-xl" />
           ))}
         </div>
       </div>
@@ -95,66 +83,68 @@ export default function CustomToolsPage() {
   return (
     <div className="max-w-6xl mx-auto">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-text-primary">Custom Tools</h1>
-        <p className="text-text-secondary">
-          Erstelle eigene Widgets und Tools mit natürlicher Sprache
-        </p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-text-primary">Meine Widgets</h1>
+          <p className="text-text-secondary">
+            Dein persönliches Dashboard mit eigenen Tools
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-text-secondary">
+          <Info className="w-4 h-4" />
+          {tools.length} / {MAX_CONTAINERS} Widgets
+        </div>
       </div>
 
-      {/* Tool Designer */}
-      <div className="mb-8">
-        <ToolDesigner
-          onGenerate={handleGenerate}
-          isGenerating={isGenerating}
-          limits={limits}
-        />
+      {/* Container Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        {/* Existing Tools */}
+        {tools.map((tool, index) => (
+          <ToolContainer
+            key={tool.id}
+            tool={tool}
+            onExecute={executeTool}
+            onEdit={handleEdit}
+            onDelete={(id) => setDeleteConfirm({ open: true, id })}
+            onRegenerate={handleRegenerate}
+            onUpdateParameters={updateParameters}
+          />
+        ))}
+
+        {/* Empty Containers */}
+        {Array.from({ length: emptySlots }).map((_, index) => (
+          <EmptyContainer
+            key={`empty-${index}`}
+            containerIndex={tools.length + index}
+            onGenerate={(desc) => handleGenerate(desc, tools.length + index)}
+            isGenerating={generatingIndex === tools.length + index}
+          />
+        ))}
       </div>
 
-      {/* Tools Gallery */}
-      {tools.length === 0 ? (
-        <div className="card p-12 text-center">
+      {/* Info when all containers are used */}
+      {tools.length >= MAX_CONTAINERS && (
+        <div className="mt-6 p-4 rounded-xl bg-surface-secondary border border-border text-center">
+          <p className="text-text-secondary">
+            Du hast alle {MAX_CONTAINERS} Widget-Plätze belegt. Lösche ein Widget, um ein neues zu erstellen.
+          </p>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {tools.length === 0 && (
+        <div className="mt-8 text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-surface-secondary flex items-center justify-center">
             <Wrench className="w-8 h-8 text-text-secondary" />
           </div>
           <h2 className="text-lg font-semibold text-text-primary mb-2">
-            Noch keine Custom Tools
+            Willkommen bei deinen Widgets!
           </h2>
           <p className="text-text-secondary max-w-md mx-auto">
-            Beschreibe oben, was du brauchst, und lasse dir ein eigenes Widget generieren.
-            Probiere es mit einem der Beispiele!
+            Klicke auf einen Container oben, um dein erstes Widget zu erstellen.
+            Beschreibe einfach, was du brauchst - z.B. einen Timer, eine Uhr oder einen Rechner.
           </p>
         </div>
-      ) : (
-        <div>
-          <h2 className="text-lg font-semibold text-text-primary mb-4">
-            Deine Tools ({tools.length})
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {tools.map(tool => (
-              <ToolCard
-                key={tool.id}
-                tool={tool}
-                onExecute={handleExecute}
-                onEdit={handleEdit}
-                onDelete={(id) => setDeleteConfirm({ open: true, id })}
-                onRegenerate={handleRegenerate}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Execution View Modal */}
-      {executionView.open && executionView.tool && (
-        <ToolExecutionView
-          tool={executionView.tool}
-          onClose={() => setExecutionView({ open: false, tool: null })}
-          onExecute={executeTool}
-          onUpdateParameters={updateParameters}
-          subscribeTool={subscribeTool}
-          unsubscribeTool={unsubscribeTool}
-        />
       )}
 
       {/* Edit Modal */}
@@ -170,8 +160,8 @@ export default function CustomToolsPage() {
         isOpen={deleteConfirm.open}
         onClose={() => setDeleteConfirm({ open: false, id: null })}
         onConfirm={handleDelete}
-        title="Tool löschen"
-        message="Möchtest du dieses Tool wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden."
+        title="Widget löschen"
+        message="Möchtest du dieses Widget wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden."
         confirmText="Löschen"
       />
     </div>

@@ -12,9 +12,9 @@ router.use(requireAuth);
 const rateLimits = new Map();
 
 const LIMITS = {
-  MAX_TOOLS_PER_USER: 10,
+  MAX_TOOLS_PER_USER: 3,
   MAX_GENERATIONS_PER_HOUR: 20,
-  MAX_EXECUTIONS_PER_HOUR: 100
+  MAX_EXECUTIONS_PER_HOUR: 500  // Higher limit to allow auto-refresh widgets
 };
 
 function getRateLimitKey(userId, type) {
