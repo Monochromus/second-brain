@@ -20,7 +20,8 @@ const SANDBOX_CONFIG = {
   maxCodeLength: 50000 // characters
 };
 
-// Forbidden patterns in code
+// Forbidden patterns in SERVER-SIDE code (not in HTML strings for browser)
+// Note: setTimeout/setInterval are allowed in HTML <script> tags for browser interactivity
 const FORBIDDEN_PATTERNS = [
   /\brequire\s*\(/,
   /\bimport\s+/,
@@ -36,8 +37,6 @@ const FORBIDDEN_PATTERNS = [
   /\bfetch\s*\(/,
   /\bXMLHttpRequest\b/,
   /\bWebSocket\b/,
-  /\bsetTimeout\b/,
-  /\bsetInterval\b/,
   /\bsetImmediate\b/,
   /\bBuffer\b/,
   /\bfs\b/,
