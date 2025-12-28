@@ -106,6 +106,11 @@ export default function Dashboard() {
     await updateProject(id, { status: 'archived' });
   };
 
+  const handleToggleTodo = async (id) => {
+    await toggleTodo(id);
+    refetchProjects();
+  };
+
   return (
     <div>
       <AgentInput
@@ -121,7 +126,7 @@ export default function Dashboard() {
           <TodoList
             todos={todos}
             loading={todosLoading}
-            onToggle={toggleTodo}
+            onToggle={handleToggleTodo}
             onEdit={(todo) => setTodoModal({ open: true, todo })}
             onDelete={(id) => setDeleteConfirm({ open: true, type: 'todo', id })}
             onReorder={reorderTodos}

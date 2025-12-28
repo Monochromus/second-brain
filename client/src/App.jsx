@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
+import { useTheme } from './hooks/useTheme';
 import Layout from './components/layout/Layout';
 import DashboardPage from './pages/DashboardPage';
 import ProjectPage from './pages/ProjectPage';
@@ -8,9 +10,12 @@ import SettingsPage from './pages/SettingsPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import LoadingSpinner from './components/shared/LoadingSpinner';
+import ThemeSetupModal from './components/shared/ThemeSetupModal';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
+  const { themeConfigured } = useTheme();
+  const [showThemeSetup, setShowThemeSetup] = useState(!themeConfigured);
 
   if (loading) {
     return (
@@ -24,7 +29,15 @@ function ProtectedRoute({ children }) {
     return <Navigate to="/login" replace />;
   }
 
-  return children;
+  return (
+    <>
+      {children}
+      <ThemeSetupModal
+        isOpen={showThemeSetup}
+        onComplete={() => setShowThemeSetup(false)}
+      />
+    </>
+  );
 }
 
 function PublicRoute({ children }) {

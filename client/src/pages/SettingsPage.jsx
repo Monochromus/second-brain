@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import { User, Key, Calendar, Palette, RefreshCw, Bot, Eye, EyeOff } from 'lucide-react';
+import { User, Key, Calendar, Palette, RefreshCw, Bot, Eye, EyeOff, Check } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
 import { useCalendarConnections } from '../hooks/useCalendar';
 import { api } from '../lib/api';
 import toast from 'react-hot-toast';
+import { cn } from '../lib/utils';
 
 export default function SettingsPage() {
   const { user, updateSettings } = useAuth();
-  const { theme, setLightTheme, setDarkTheme } = useTheme();
+  const { theme, setLightTheme, setDarkTheme, accentColor, setAccentColor, accentColors } = useTheme();
   const { connections, addConnection, removeConnection, refetch: refetchConnections } = useCalendarConnections();
 
   const [profileForm, setProfileForm] = useState({
@@ -276,33 +277,67 @@ export default function SettingsPage() {
             </div>
             <div>
               <h2 className="font-semibold text-text-primary">Erscheinungsbild</h2>
-              <p className="text-sm text-text-secondary">Wähle dein bevorzugtes Theme</p>
+              <p className="text-sm text-text-secondary">Wähle dein bevorzugtes Theme und Akzentfarbe</p>
             </div>
           </div>
 
-          <div className="flex gap-4">
-            <button
-              onClick={setLightTheme}
-              className={`flex-1 p-4 rounded-lg border-2 transition-all ${
-                theme === 'light'
-                  ? 'border-accent bg-accent/5'
-                  : 'border-border hover:border-accent/50'
-              }`}
-            >
-              <div className="w-full h-20 rounded-md bg-white border border-gray-200 mb-2" />
-              <p className="text-sm font-medium text-text-primary">Hell</p>
-            </button>
-            <button
-              onClick={setDarkTheme}
-              className={`flex-1 p-4 rounded-lg border-2 transition-all ${
-                theme === 'dark'
-                  ? 'border-accent bg-accent/5'
-                  : 'border-border hover:border-accent/50'
-              }`}
-            >
-              <div className="w-full h-20 rounded-md bg-gray-900 border border-gray-700 mb-2" />
-              <p className="text-sm font-medium text-text-primary">Dunkel</p>
-            </button>
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-3">Darstellung</label>
+              <div className="flex gap-4">
+                <button
+                  onClick={setLightTheme}
+                  className={`flex-1 p-4 rounded-lg border-2 transition-all ${
+                    theme === 'light'
+                      ? 'border-accent bg-accent/5'
+                      : 'border-border hover:border-accent/50'
+                  }`}
+                >
+                  <div className="w-full h-20 rounded-md bg-white border border-gray-200 mb-2" />
+                  <p className="text-sm font-medium text-text-primary">Hell</p>
+                </button>
+                <button
+                  onClick={setDarkTheme}
+                  className={`flex-1 p-4 rounded-lg border-2 transition-all ${
+                    theme === 'dark'
+                      ? 'border-accent bg-accent/5'
+                      : 'border-border hover:border-accent/50'
+                  }`}
+                >
+                  <div className="w-full h-20 rounded-md bg-gray-900 border border-gray-700 mb-2" />
+                  <p className="text-sm font-medium text-text-primary">Dunkel</p>
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-3">Akzentfarbe</label>
+              <div className="grid grid-cols-5 sm:grid-cols-10 gap-3">
+                {accentColors.map((color) => (
+                  <button
+                    key={color.id}
+                    onClick={() => setAccentColor(color.id)}
+                    className={cn(
+                      'relative aspect-square rounded-xl border-2 transition-all flex items-center justify-center',
+                      accentColor === color.id
+                        ? 'border-text-primary scale-105 shadow-lg'
+                        : 'border-transparent hover:scale-105'
+                    )}
+                    style={{
+                      backgroundColor: theme === 'dark' ? color.darkColor : color.color
+                    }}
+                    title={color.name}
+                  >
+                    {accentColor === color.id && (
+                      <Check className="w-5 h-5 text-white drop-shadow-md" />
+                    )}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-text-secondary mt-2">
+                Aktuelle Farbe: {accentColors.find(c => c.id === accentColor)?.name}
+              </p>
+            </div>
           </div>
         </div>
 
