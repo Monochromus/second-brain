@@ -1,14 +1,25 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Brain, Search, Settings, LogOut, User, Calendar, Wrench, ChevronDown, CheckCircle, FileText, Folder, FolderOpen, Library } from 'lucide-react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Brain, Search, Settings, LogOut, User, Calendar, Wrench, ChevronDown, CheckCircle, FileText, Folder, FolderOpen, Library, Home, LayoutGrid } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { api } from '../../lib/api';
 import ThemeToggle from '../shared/ThemeToggle';
 import { cn } from '../../lib/utils';
 
+// Navigation items configuration
+const navItems = [
+  { path: '/', icon: Home, label: 'Dashboard', exact: true },
+  { path: '/projects', icon: LayoutGrid, label: 'Projekte' },
+  { path: '/areas', icon: FolderOpen, label: 'Bereiche' },
+  { path: '/resources', icon: Library, label: 'Ressourcen' },
+  { path: '/tools', icon: Wrench, label: 'Tools' },
+  { path: '/calendar', icon: Calendar, label: 'Kalender' },
+];
+
 export default function Header() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -104,6 +115,14 @@ export default function Header() {
     navigate('/login');
   };
 
+  // Check if a nav item is active
+  const isNavActive = (item) => {
+    if (item.exact) {
+      return location.pathname === item.path;
+    }
+    return location.pathname.startsWith(item.path);
+  };
+
   return (
     <header className="sticky top-0 z-40 bg-surface border-b border-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -182,38 +201,31 @@ export default function Header() {
             )}
           </div>
 
-          <div className="flex items-center gap-2">
-            <Link
-              to="/calendar"
-              className="p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-secondary transition-all"
-              title="Kalender"
-            >
-              <Calendar className="w-5 h-5" />
-            </Link>
+          <div className="flex items-center gap-1">
+            {/* Navigation Items */}
+            <nav className="hidden md:flex items-center gap-1">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const active = isNavActive(item);
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={cn(
+                      "p-2 rounded-lg transition-all",
+                      active
+                        ? "bg-accent/10 text-accent"
+                        : "text-text-secondary hover:text-text-primary hover:bg-surface-secondary"
+                    )}
+                    title={item.label}
+                  >
+                    <Icon className="w-5 h-5" />
+                  </Link>
+                );
+              })}
+            </nav>
 
-            <Link
-              to="/areas"
-              className="p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-secondary transition-all"
-              title="Bereiche"
-            >
-              <FolderOpen className="w-5 h-5" />
-            </Link>
-
-            <Link
-              to="/resources"
-              className="p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-secondary transition-all"
-              title="Ressourcen"
-            >
-              <Library className="w-5 h-5" />
-            </Link>
-
-            <Link
-              to="/tools"
-              className="p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-secondary transition-all"
-              title="Custom Tools"
-            >
-              <Wrench className="w-5 h-5" />
-            </Link>
+            <div className="hidden md:block w-px h-6 bg-border mx-2" />
 
             <ThemeToggle />
 

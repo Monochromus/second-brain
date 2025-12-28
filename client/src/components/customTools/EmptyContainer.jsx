@@ -40,9 +40,9 @@ export default function EmptyContainer({ onGenerate, isGenerating, containerInde
         <div className="w-14 h-14 rounded-2xl bg-surface-secondary group-hover:bg-accent/10 flex items-center justify-center mb-4 transition-colors">
           <Plus className="w-7 h-7 text-text-secondary group-hover:text-accent transition-colors" />
         </div>
-        <h3 className="font-semibold text-text-primary mb-1">Widget hinzufügen</h3>
+        <h3 className="font-semibold text-text-primary mb-1">Tool hinzufügen</h3>
         <p className="text-sm text-text-secondary text-center px-4">
-          Beschreibe dein Widget in natürlicher Sprache
+          Beschreibe dein Tool in natürlicher Sprache
         </p>
       </div>
     );
@@ -54,7 +54,7 @@ export default function EmptyContainer({ onGenerate, isGenerating, containerInde
       <div className="flex items-center justify-between p-3 border-b border-border">
         <div className="flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-accent" />
-          <h3 className="font-semibold text-text-primary">Neues Widget</h3>
+          <h3 className="font-semibold text-text-primary">Neues Tool</h3>
         </div>
         <button
           onClick={handleCancel}

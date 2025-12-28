@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import Modal from '../shared/Modal';
 import { format } from 'date-fns';
+import { useAreas } from '../../hooks/useAreas';
+import { FolderOpen } from 'lucide-react';
 
 const colorOptions = [
   '#D97706',
@@ -13,13 +15,15 @@ const colorOptions = [
   '#65A30D'
 ];
 
-export default function ProjectModal({ isOpen, onClose, project, onSave }) {
+export default function ProjectModal({ isOpen, onClose, project, onSave, defaultAreaId }) {
+  const { areas } = useAreas();
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     color: '#D97706',
     status: 'active',
-    deadline: ''
+    deadline: '',
+    area_id: ''
   });
   const [saving, setSaving] = useState(false);
 
@@ -30,7 +34,8 @@ export default function ProjectModal({ isOpen, onClose, project, onSave }) {
         description: project.description || '',
         color: project.color || '#D97706',
         status: project.status || 'active',
-        deadline: project.deadline ? format(new Date(project.deadline), 'yyyy-MM-dd') : ''
+        deadline: project.deadline ? format(new Date(project.deadline), 'yyyy-MM-dd') : '',
+        area_id: project.area_id || ''
       });
     } else {
       setFormData({
@@ -38,10 +43,11 @@ export default function ProjectModal({ isOpen, onClose, project, onSave }) {
         description: '',
         color: '#D97706',
         status: 'active',
-        deadline: ''
+        deadline: '',
+        area_id: defaultAreaId || ''
       });
     }
-  }, [project, isOpen]);
+  }, [project, isOpen, defaultAreaId]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -51,7 +57,8 @@ export default function ProjectModal({ isOpen, onClose, project, onSave }) {
     try {
       await onSave({
         ...formData,
-        deadline: formData.deadline || null
+        deadline: formData.deadline || null,
+        area_id: formData.area_id ? parseInt(formData.area_id) : null
       });
       onClose();
     } finally {
@@ -87,6 +94,25 @@ export default function ProjectModal({ isOpen, onClose, project, onSave }) {
             className="input min-h-[100px] resize-none"
             placeholder="Worum geht es in diesem Projekt?"
           />
+        </div>
+
+        <div>
+          <label className="label">Bereich</label>
+          <div className="relative">
+            <FolderOpen className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
+            <select
+              value={formData.area_id}
+              onChange={(e) => setFormData({ ...formData, area_id: e.target.value })}
+              className="input pl-10"
+            >
+              <option value="">Kein Bereich</option>
+              {areas.map((area) => (
+                <option key={area.id} value={area.id}>
+                  {area.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div>

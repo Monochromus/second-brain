@@ -80,7 +80,7 @@ export default function ToolContainer({
       return (
         <div className="flex flex-col items-center justify-center h-full min-h-[200px]">
           <Loader2 className="w-10 h-10 text-accent animate-spin mb-3" />
-          <span className="text-sm text-text-secondary">Widget wird generiert...</span>
+          <span className="text-sm text-text-secondary">Tool wird generiert...</span>
         </div>
       );
     }

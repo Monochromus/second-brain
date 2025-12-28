@@ -40,7 +40,7 @@ export default function ToolDesigner({ onGenerate, isGenerating, limits }) {
             Neues Tool erstellen
           </h2>
           <p className="text-sm text-text-secondary">
-            Beschreibe dein Widget in natürlicher Sprache
+            Beschreibe dein Tool in natürlicher Sprache
           </p>
         </div>
       </div>

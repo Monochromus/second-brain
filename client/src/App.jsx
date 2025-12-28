@@ -4,11 +4,13 @@ import { useAuth } from './hooks/useAuth';
 import { useTheme } from './hooks/useTheme';
 import Layout from './components/layout/Layout';
 import DashboardPage from './pages/DashboardPage';
+import ProjectsPage from './pages/ProjectsPage';
 import ProjectPage from './pages/ProjectPage';
 import CalendarPage from './pages/CalendarPage';
 import SettingsPage from './pages/SettingsPage';
 import CustomToolsPage from './pages/CustomToolsPage';
 import AreasPage from './pages/AreasPage';
+import AreaPage from './pages/AreaPage';
 import ResourcesPage from './pages/ResourcesPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -89,8 +91,10 @@ export default function App() {
         }
       >
         <Route index element={<DashboardPage />} />
+        <Route path="projects" element={<ProjectsPage />} />
         <Route path="project/:id" element={<ProjectPage />} />
         <Route path="areas" element={<AreasPage />} />
+        <Route path="area/:id" element={<AreaPage />} />
         <Route path="resources" element={<ResourcesPage />} />
         <Route path="calendar" element={<CalendarPage />} />
         <Route path="tools" element={<CustomToolsPage />} />

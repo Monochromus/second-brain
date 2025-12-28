@@ -93,14 +93,14 @@ export default function CustomToolsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">Meine Widgets</h1>
+          <h1 className="text-2xl font-bold text-text-primary">Meine Tools</h1>
           <p className="text-text-secondary">
             Dein persönliches Dashboard mit eigenen Tools
           </p>
         </div>
         <div className="flex items-center gap-2 text-sm text-text-secondary">
           <Info className="w-4 h-4" />
-          {tools.length} / {MAX_CONTAINERS} Widgets
+          {tools.length} / {MAX_CONTAINERS} Tools
         </div>
       </div>
 
@@ -134,7 +134,7 @@ export default function CustomToolsPage() {
       {tools.length >= MAX_CONTAINERS && (
         <div className="mt-6 p-4 rounded-xl bg-surface-secondary border border-border text-center">
           <p className="text-text-secondary">
-            Du hast alle {MAX_CONTAINERS} Widget-Plätze belegt. Lösche ein Widget, um ein neues zu erstellen.
+            Du hast alle {MAX_CONTAINERS} Tool-Plätze belegt. Lösche ein Tool, um ein neues zu erstellen.
           </p>
         </div>
       )}
@@ -146,10 +146,10 @@ export default function CustomToolsPage() {
             <Wrench className="w-8 h-8 text-text-secondary" />
           </div>
           <h2 className="text-lg font-semibold text-text-primary mb-2">
-            Willkommen bei deinen Widgets!
+            Willkommen bei deinen Tools!
           </h2>
           <p className="text-text-secondary max-w-md mx-auto">
-            Klicke auf einen Container oben, um dein erstes Widget zu erstellen.
+            Klicke auf einen Container oben, um dein erstes Tool zu erstellen.
             Beschreibe einfach, was du brauchst - z.B. einen Timer, eine Uhr oder einen Rechner.
           </p>
         </div>
@@ -168,8 +168,8 @@ export default function CustomToolsPage() {
         isOpen={deleteConfirm.open}
         onClose={() => setDeleteConfirm({ open: false, id: null })}
         onConfirm={handleDelete}
-        title="Widget löschen"
-        message="Möchtest du dieses Widget wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden."
+        title="Tool löschen"
+        message="Möchtest du dieses Tool wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden."
         confirmText="Löschen"
       />
     </div>

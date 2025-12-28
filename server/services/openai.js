@@ -33,9 +33,10 @@ Du hilfst dem Nutzer, Aufgaben zu organisieren, Termine zu planen und Notizen zu
 Deine Fähigkeiten:
 - Todos erstellen, bearbeiten, priorisieren, abschließen, löschen
 - Notizen erstellen, bearbeiten und durchsuchen
-- Projekte erstellen und verwalten
+- Projekte erstellen und verwalten (mit automatischer Bereich-Zuordnung)
 - Kalendertermine abrufen und neue erstellen
 - Items miteinander verknüpfen
+- Bereiche (Areas) verwalten - dauerhafte Verantwortungsbereiche wie Arbeit, Gesundheit, Familie
 - Widgets erstellen, anpassen und löschen (interaktive Mini-Apps wie Uhren, Timer, Rechner, Countdowns)
 
 Regeln:
@@ -47,6 +48,7 @@ Regeln:
 6. Bei Zeitangaben wie "morgen", "nächste Woche" berechne das korrekte Datum
 7. Antworte immer auf Deutsch und knapp
 8. Bei Widget-Anfragen: Nutze list_widgets um bestehende Widgets zu sehen, create_widget für neue, update_widget zum Ändern
+9. Bei Projekterstellung: Ordne das Projekt automatisch einem passenden Bereich zu. Nutze zuerst list_areas um bestehende Bereiche zu sehen. Wenn kein passender Bereich existiert, erstelle einen neuen mit create_area, bevor du das Projekt erstellst.
 
 Heute ist ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.`;
 
@@ -206,14 +208,15 @@ const tools = [
     type: "function",
     function: {
       name: "create_project",
-      description: "Erstellt ein neues Projekt",
+      description: "Erstellt ein neues Projekt. Projekte sollten einem Bereich zugeordnet werden.",
       parameters: {
         type: "object",
         properties: {
           name: { type: "string", description: "Name des Projekts" },
           description: { type: "string", description: "Beschreibung des Projekts" },
           color: { type: "string", description: "Hex-Farbcode, z.B. #D97706" },
-          deadline: { type: "string", description: "Deadline im Format YYYY-MM-DD" }
+          deadline: { type: "string", description: "Deadline im Format YYYY-MM-DD" },
+          area_id: { type: "integer", description: "ID des Bereichs (Area), dem das Projekt zugeordnet werden soll. Nutze list_areas um verfügbare Bereiche zu sehen." }
         },
         required: ["name"]
       }
@@ -232,7 +235,8 @@ const tools = [
           description: { type: "string" },
           color: { type: "string" },
           status: { type: "string", enum: ["active", "archived", "completed"] },
-          deadline: { type: "string" }
+          deadline: { type: "string" },
+          area_id: { type: "integer", description: "ID des Bereichs (null zum Entfernen)" }
         },
         required: ["id"]
       }
@@ -632,19 +636,35 @@ async function executeToolCall(toolName, args, userId) {
       }
 
       case 'create_project': {
+        // Validate area_id if provided
+        if (args.area_id) {
+          const area = db.prepare('SELECT id, name FROM areas WHERE id = ? AND user_id = ?').get(args.area_id, userId);
+          if (!area) {
+            return { success: false, error: 'Bereich nicht gefunden.' };
+          }
+        }
+
         const result = db.prepare(`
-          INSERT INTO projects (user_id, name, description, color, deadline, position)
-          VALUES (?, ?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM projects WHERE user_id = ?))
+          INSERT INTO projects (user_id, name, description, color, deadline, area_id, position)
+          VALUES (?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM projects WHERE user_id = ?))
         `).run(
           userId,
           args.name,
           args.description || null,
           args.color || '#D97706',
           args.deadline || null,
+          args.area_id || null,
           userId
         );
-        const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(result.lastInsertRowid);
-        return { success: true, project, message: `Projekt "${args.name}" erstellt.` };
+        const project = db.prepare(`
+          SELECT p.*, a.name as area_name
+          FROM projects p
+          LEFT JOIN areas a ON p.area_id = a.id
+          WHERE p.id = ?
+        `).get(result.lastInsertRowid);
+
+        const areaInfo = project.area_name ? ` im Bereich "${project.area_name}"` : '';
+        return { success: true, project, message: `Projekt "${args.name}"${areaInfo} erstellt.` };
       }
 
       case 'update_project': {
@@ -669,15 +689,20 @@ async function executeToolCall(toolName, args, userId) {
       }
 
       case 'list_projects': {
-        let query = 'SELECT * FROM projects WHERE user_id = ?';
+        let query = `
+          SELECT p.*, a.name as area_name
+          FROM projects p
+          LEFT JOIN areas a ON p.area_id = a.id
+          WHERE p.user_id = ?
+        `;
         const params = [userId];
 
         if (args.status && args.status !== 'all') {
-          query += ' AND status = ?';
+          query += ' AND p.status = ?';
           params.push(args.status);
         }
 
-        query += ' ORDER BY position ASC';
+        query += ' ORDER BY p.position ASC';
         const projects = db.prepare(query).all(...params);
 
         const projectsWithStats = projects.map(project => {

@@ -11,15 +11,20 @@ router.get('/', asyncHandler(async (req, res) => {
   const userId = req.userId;
   const { status } = req.query;
 
-  let query = 'SELECT * FROM projects WHERE user_id = ?';
+  let query = `
+    SELECT p.*, a.name as area_name, a.color as area_color, a.icon as area_icon
+    FROM projects p
+    LEFT JOIN areas a ON p.area_id = a.id
+    WHERE p.user_id = ?
+  `;
   const params = [userId];
 
   if (status && status !== 'all') {
-    query += ' AND status = ?';
+    query += ' AND p.status = ?';
     params.push(status);
   }
 
-  query += ' ORDER BY position ASC, created_at DESC';
+  query += ' ORDER BY p.position ASC, p.created_at DESC';
 
   const projects = db.prepare(query).all(...params);
 
@@ -52,8 +57,12 @@ router.get('/:id', asyncHandler(async (req, res) => {
   const userId = req.userId;
   const { id } = req.params;
 
-  const project = db.prepare('SELECT * FROM projects WHERE id = ? AND user_id = ?')
-    .get(id, userId);
+  const project = db.prepare(`
+    SELECT p.*, a.name as area_name, a.color as area_color, a.icon as area_icon
+    FROM projects p
+    LEFT JOIN areas a ON p.area_id = a.id
+    WHERE p.id = ? AND p.user_id = ?
+  `).get(id, userId);
 
   if (!project) {
     return res.status(404).json({ error: 'Projekt nicht gefunden.' });
@@ -104,10 +113,18 @@ router.get('/:id', asyncHandler(async (req, res) => {
 
 router.post('/', asyncHandler(async (req, res) => {
   const userId = req.userId;
-  const { name, description, color, status, deadline, position } = req.body;
+  const { name, description, color, status, deadline, position, area_id } = req.body;
 
   if (!name || !name.trim()) {
     return res.status(400).json({ error: 'Projektname ist erforderlich.' });
+  }
+
+  // Validate area_id if provided
+  if (area_id) {
+    const area = db.prepare('SELECT id FROM areas WHERE id = ? AND user_id = ?').get(area_id, userId);
+    if (!area) {
+      return res.status(400).json({ error: 'Bereich nicht gefunden.' });
+    }
   }
 
   const maxPosition = db.prepare('SELECT MAX(position) as max FROM projects WHERE user_id = ?')
@@ -115,8 +132,8 @@ router.post('/', asyncHandler(async (req, res) => {
   const newPosition = position !== undefined ? position : (maxPosition.max || 0) + 1;
 
   const result = db.prepare(`
-    INSERT INTO projects (user_id, name, description, color, status, deadline, position)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO projects (user_id, name, description, color, status, deadline, position, area_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     userId,
     name.trim(),
@@ -124,7 +141,8 @@ router.post('/', asyncHandler(async (req, res) => {
     color || '#D97706',
     status || 'active',
     deadline || null,
-    newPosition
+    newPosition,
+    area_id || null
   );
 
   const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(result.lastInsertRowid);
@@ -146,13 +164,21 @@ router.post('/', asyncHandler(async (req, res) => {
 router.put('/:id', asyncHandler(async (req, res) => {
   const userId = req.userId;
   const { id } = req.params;
-  const { name, description, color, status, deadline, position } = req.body;
+  const { name, description, color, status, deadline, position, area_id } = req.body;
 
   const existing = db.prepare('SELECT * FROM projects WHERE id = ? AND user_id = ?')
     .get(id, userId);
 
   if (!existing) {
     return res.status(404).json({ error: 'Projekt nicht gefunden.' });
+  }
+
+  // Validate area_id if provided
+  if (area_id !== undefined && area_id !== null) {
+    const area = db.prepare('SELECT id FROM areas WHERE id = ? AND user_id = ?').get(area_id, userId);
+    if (!area) {
+      return res.status(400).json({ error: 'Bereich nicht gefunden.' });
+    }
   }
 
   const updates = [];
@@ -181,6 +207,10 @@ router.put('/:id', asyncHandler(async (req, res) => {
   if (position !== undefined) {
     updates.push('position = ?');
     params.push(position);
+  }
+  if (area_id !== undefined) {
+    updates.push('area_id = ?');
+    params.push(area_id);
   }
 
   if (updates.length === 0) {

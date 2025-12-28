@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import Header from './Header';
+import MobileNav from './MobileNav';
 import ArchiveDrawer from './ArchiveDrawer';
 import AgentInput from '../agent/AgentInput';
 import { useAgent } from '../../hooks/useAgent';
@@ -10,7 +11,7 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 md:pb-6">
         <AgentInput
           onSend={sendMessage}
           isProcessing={isProcessing}
@@ -18,6 +19,7 @@ export default function Layout() {
         />
         <Outlet />
       </main>
+      <MobileNav />
       <ArchiveDrawer />
     </div>
   );

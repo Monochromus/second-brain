@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { Home, LayoutGrid } from 'lucide-react';
 import ProjectDetail from '../components/projects/ProjectDetail';
 import ProjectModal from '../components/projects/ProjectModal';
 import TodoModal from '../components/todos/TodoModal';
 import NoteModal from '../components/notes/NoteModal';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
 import LoadingSpinner from '../components/shared/LoadingSpinner';
+import Breadcrumbs from '../components/shared/Breadcrumbs';
 import { useProject } from '../hooks/useProjects';
 import { useTodos } from '../hooks/useTodos';
 import { useNotes } from '../hooks/useNotes';
@@ -110,8 +112,15 @@ export default function ProjectPage() {
     }
   };
 
+  const breadcrumbItems = [
+    { label: 'Dashboard', href: '/', icon: Home },
+    { label: 'Projekte', href: '/projects', icon: LayoutGrid },
+    { label: project.name }
+  ];
+
   return (
     <>
+      <Breadcrumbs items={breadcrumbItems} />
       <ProjectDetail
         project={project}
         todos={todos}

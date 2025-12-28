@@ -98,7 +98,7 @@ export default function ToolExecutionView({
       return (
         <div className="flex flex-col items-center justify-center h-full text-text-secondary">
           <Loader2 className="w-12 h-12 mb-4 animate-spin opacity-50" />
-          <p>Widget wird geladen...</p>
+          <p>Tool wird geladen...</p>
         </div>
       );
     }

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Briefcase, Heart, Home, BookOpen, Users, DollarSign,
   Dumbbell, GraduationCap, Plus, MoreVertical, Archive,
@@ -24,6 +24,7 @@ const ICONS = {
 };
 
 export default function AreasPage() {
+  const navigate = useNavigate();
   const {
     areas,
     loading,
@@ -42,6 +43,12 @@ export default function AreasPage() {
   const [modal, setModal] = useState({ open: false, area: null });
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null });
   const [menuOpen, setMenuOpen] = useState(null);
+
+  const handleAreaClick = (areaId, e) => {
+    // Don't navigate if clicking on menu button
+    if (e.target.closest('button')) return;
+    navigate(`/area/${areaId}`);
+  };
 
   const handleSave = async (data) => {
     if (modal.area) {
@@ -119,7 +126,8 @@ export default function AreasPage() {
             return (
               <div
                 key={area.id}
-                className="card p-5 hover:shadow-md transition-shadow group"
+                onClick={(e) => handleAreaClick(area.id, e)}
+                className="card p-5 hover:shadow-md transition-shadow group cursor-pointer"
               >
                 <div className="flex items-start justify-between mb-3">
                   <div
