@@ -141,6 +141,25 @@ function initializeDatabase() {
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    -- Custom Tools table (user-generated widgets)
+    CREATE TABLE IF NOT EXISTS custom_tools (
+      id TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL,
+      generated_code TEXT,
+      parameters_schema TEXT DEFAULT '{}',
+      current_parameters TEXT DEFAULT '{}',
+      last_result TEXT,
+      last_result_at DATETIME,
+      status TEXT DEFAULT 'draft' CHECK(status IN ('draft', 'generating', 'ready', 'error')),
+      error_message TEXT,
+      execution_count INTEGER DEFAULT 0,
+      position INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     -- Create indexes for better performance
     CREATE INDEX IF NOT EXISTS idx_todos_user ON todos(user_id);
     CREATE INDEX IF NOT EXISTS idx_todos_project ON todos(project_id);
@@ -153,6 +172,8 @@ function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_calendar_events_dates ON calendar_events(start_time, end_time);
     CREATE INDEX IF NOT EXISTS idx_areas_user ON areas(user_id);
     CREATE INDEX IF NOT EXISTS idx_resources_user ON resources(user_id);
+    CREATE INDEX IF NOT EXISTS idx_custom_tools_user ON custom_tools(user_id);
+    CREATE INDEX IF NOT EXISTS idx_custom_tools_status ON custom_tools(status);
   `);
 
   console.log('Database initialized successfully');
@@ -244,6 +265,13 @@ function createTriggers() {
     AFTER UPDATE ON resources
     BEGIN
       UPDATE resources SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+    END;
+
+    -- Trigger to update updated_at on custom_tools
+    CREATE TRIGGER IF NOT EXISTS update_custom_tools_timestamp
+    AFTER UPDATE ON custom_tools
+    BEGIN
+      UPDATE custom_tools SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
     END;
   `);
 }

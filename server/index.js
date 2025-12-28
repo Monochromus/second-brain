@@ -1,9 +1,11 @@
 require('dotenv').config();
 
 const express = require('express');
+const http = require('http');
 const cors = require('cors');
 const session = require('express-session');
 const path = require('path');
+const jwt = require('jsonwebtoken');
 
 require('./config/database');
 
@@ -19,9 +21,74 @@ const searchRoutes = require('./routes/search');
 const areasRoutes = require('./routes/areas');
 const resourcesRoutes = require('./routes/resources');
 const archiveRoutes = require('./routes/archive');
+const customToolsRoutes = require('./routes/customTools');
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 3001;
+
+// Socket.io setup
+let io;
+try {
+  const { Server } = require('socket.io');
+  const corsOrigins = process.env.NODE_ENV !== 'production'
+    ? ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176', 'http://localhost:5177']
+    : [];
+
+  io = new Server(server, {
+    cors: {
+      origin: corsOrigins,
+      credentials: true
+    }
+  });
+
+  // Socket.io authentication middleware
+  io.use((socket, next) => {
+    const token = socket.handshake.auth.token;
+    if (!token) {
+      return next(new Error('Authentication required'));
+    }
+
+    try {
+      const jwtSecret = process.env.JWT_SECRET || process.env.SESSION_SECRET;
+      const decoded = jwt.verify(token, jwtSecret);
+      socket.userId = decoded.userId;
+      next();
+    } catch (err) {
+      next(new Error('Invalid token'));
+    }
+  });
+
+  // Socket.io connection handler
+  io.on('connection', (socket) => {
+    console.log(`WebSocket connected: user ${socket.userId}`);
+
+    // Join user's room for targeted broadcasts
+    socket.join(`user:${socket.userId}`);
+
+    // Handle tool subscription
+    socket.on('tool:subscribe', (toolId) => {
+      socket.join(`tool:${toolId}`);
+      console.log(`User ${socket.userId} subscribed to tool:${toolId}`);
+    });
+
+    socket.on('tool:unsubscribe', (toolId) => {
+      socket.leave(`tool:${toolId}`);
+      console.log(`User ${socket.userId} unsubscribed from tool:${toolId}`);
+    });
+
+    socket.on('disconnect', () => {
+      console.log(`WebSocket disconnected: user ${socket.userId}`);
+    });
+  });
+
+  // Make io globally available for routes
+  global.io = io;
+  console.log('Socket.io initialized');
+} catch (err) {
+  console.warn('Socket.io not available:', err.message);
+  global.io = null;
+}
 
 // CORS only needed for development (different ports)
 // In production, frontend and backend are served from same origin
@@ -58,6 +125,7 @@ app.use('/api/search', searchRoutes);
 app.use('/api/areas', areasRoutes);
 app.use('/api/resources', resourcesRoutes);
 app.use('/api/archive', archiveRoutes);
+app.use('/api/custom-tools', customToolsRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({
@@ -78,7 +146,7 @@ if (process.env.NODE_ENV === 'production') {
 
 app.use(errorHandler);
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════════════╗
 ║                                                               ║
@@ -86,9 +154,10 @@ app.listen(PORT, () => {
 ║                                                               ║
 ║   Server running on http://localhost:${PORT}                    ║
 ║   Environment: ${(process.env.NODE_ENV || 'development').padEnd(12)}                            ║
+║   WebSocket: ${global.io ? 'enabled' : 'disabled'}                                        ║
 ║                                                               ║
 ╚═══════════════════════════════════════════════════════════════╝
   `);
 });
 
-module.exports = app;
+module.exports = { app, server, io };
