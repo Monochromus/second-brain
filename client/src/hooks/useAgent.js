@@ -13,8 +13,17 @@ export function useAgent() {
     setIsProcessing(true);
     setLastResponse(null);
 
+    // Build chat history from last 10 messages (most recent first, so reverse)
+    const chatHistory = history
+      .slice(0, 10)
+      .reverse()
+      .map(entry => ({
+        user: entry.message,
+        assistant: entry.response
+      }));
+
     try {
-      const response = await api.post('/agent/chat', { message });
+      const response = await api.post('/agent/chat', { message, chatHistory });
 
       const historyEntry = {
         id: Date.now(),

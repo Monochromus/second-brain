@@ -641,7 +641,7 @@ async function executeToolCall(toolName, args, userId) {
   }
 }
 
-async function processAgentRequest(message, userId) {
+async function processAgentRequest(message, userId, chatHistory = []) {
   const openai = createOpenAIClient(userId);
 
   if (!openai) {
@@ -651,10 +651,23 @@ async function processAgentRequest(message, userId) {
     };
   }
 
+  // Build messages array with chat history for context
   const messages = [
-    { role: 'system', content: SYSTEM_PROMPT },
-    { role: 'user', content: message }
+    { role: 'system', content: SYSTEM_PROMPT }
   ];
+
+  // Add chat history (last 10 conversations for context)
+  for (const entry of chatHistory) {
+    if (entry.user) {
+      messages.push({ role: 'user', content: entry.user });
+    }
+    if (entry.assistant) {
+      messages.push({ role: 'assistant', content: entry.assistant });
+    }
+  }
+
+  // Add current user message
+  messages.push({ role: 'user', content: message });
 
   const actions = [];
   let iterations = 0;
