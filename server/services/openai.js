@@ -305,10 +305,102 @@ const tools = [
     type: "function",
     function: {
       name: "get_context",
-      description: "Ruft aktuellen Kontext ab: offene Todos, anstehende Termine, aktive Projekte. Nutze dies um den aktuellen Stand zu verstehen.",
+      description: "Ruft aktuellen Kontext ab: offene Todos, anstehende Termine, aktive Projekte, Bereiche. Nutze dies um den aktuellen Stand zu verstehen.",
       parameters: {
         type: "object",
         properties: {}
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_area",
+      description: "Erstellt einen neuen Verantwortungsbereich (Area). Areas sind dauerhafte Bereiche wie 'Arbeit', 'Gesundheit', 'Familie'.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Name des Bereichs" },
+          description: { type: "string", description: "Beschreibung des Bereichs" },
+          icon: { type: "string", description: "Icon-Name (z.B. briefcase, heart, home, book)" },
+          color: { type: "string", description: "Hex-Farbcode, z.B. #6366F1" }
+        },
+        required: ["name"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_areas",
+      description: "Listet alle Verantwortungsbereiche (Areas) auf",
+      parameters: {
+        type: "object",
+        properties: {
+          include_archived: { type: "boolean", description: "Auch archivierte anzeigen" }
+        }
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_resource",
+      description: "Erstellt eine neue Ressource im Wissensspeicher. Ressourcen sind Informationen zu Themen wie Rezepte, Anleitungen, Links.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Titel der Ressource" },
+          content: { type: "string", description: "Inhalt (kann Markdown sein)" },
+          url: { type: "string", description: "Optionaler Link" },
+          tags: { type: "array", items: { type: "string" }, description: "Tags zur Kategorisierung" },
+          category: { type: "string", description: "Kategorie wie 'Rezepte', 'Programmierung', 'Reisen'" }
+        },
+        required: ["title"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "search_resources",
+      description: "Durchsucht den Wissensspeicher (Resources)",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Suchbegriff" },
+          category: { type: "string", description: "Filter nach Kategorie" }
+        }
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "archive_item",
+      description: "Archiviert ein Element (Todo, Notiz, Projekt, Bereich oder Ressource)",
+      parameters: {
+        type: "object",
+        properties: {
+          type: { type: "string", enum: ["todo", "note", "project", "area", "resource"], description: "Typ des Elements" },
+          id: { type: "integer", description: "ID des Elements" }
+        },
+        required: ["type", "id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "restore_item",
+      description: "Stellt ein archiviertes Element wieder her",
+      parameters: {
+        type: "object",
+        properties: {
+          type: { type: "string", enum: ["todo", "note", "project", "area", "resource"], description: "Typ des Elements" },
+          id: { type: "integer", description: "ID des Elements" }
+        },
+        required: ["type", "id"]
       }
     }
   }
@@ -620,16 +712,145 @@ async function executeToolCall(toolName, args, userId) {
           ORDER BY updated_at DESC LIMIT 5
         `).all(userId);
 
+        const activeAreas = db.prepare(`
+          SELECT * FROM areas WHERE user_id = ? AND is_archived = 0
+          ORDER BY position ASC LIMIT 10
+        `).all(userId);
+
         return {
           success: true,
           context: {
             openTodos,
             upcomingEvents,
             activeProjects,
+            activeAreas,
             recentNotes,
             today
           }
         };
+      }
+
+      case 'create_area': {
+        const result = db.prepare(`
+          INSERT INTO areas (user_id, name, description, icon, color, position)
+          VALUES (?, ?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM areas WHERE user_id = ?))
+        `).run(
+          userId,
+          args.name,
+          args.description || null,
+          args.icon || 'folder',
+          args.color || '#6366F1',
+          userId
+        );
+        const area = db.prepare('SELECT * FROM areas WHERE id = ?').get(result.lastInsertRowid);
+        return { success: true, area, message: `Bereich "${args.name}" erstellt.` };
+      }
+
+      case 'list_areas': {
+        let query = 'SELECT * FROM areas WHERE user_id = ?';
+        if (!args.include_archived) {
+          query += ' AND is_archived = 0';
+        }
+        query += ' ORDER BY position ASC';
+        const areas = db.prepare(query).all(userId);
+        return { success: true, areas, count: areas.length };
+      }
+
+      case 'create_resource': {
+        const result = db.prepare(`
+          INSERT INTO resources (user_id, title, content, url, tags, category, position)
+          VALUES (?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM resources WHERE user_id = ?))
+        `).run(
+          userId,
+          args.title,
+          args.content || null,
+          args.url || null,
+          JSON.stringify(args.tags || []),
+          args.category || null,
+          userId
+        );
+        const resource = db.prepare('SELECT * FROM resources WHERE id = ?').get(result.lastInsertRowid);
+        return { success: true, resource, message: `Ressource "${args.title}" erstellt.` };
+      }
+
+      case 'search_resources': {
+        let query = 'SELECT * FROM resources WHERE user_id = ? AND is_archived = 0';
+        const params = [userId];
+
+        if (args.query) {
+          query += ' AND (title LIKE ? OR content LIKE ?)';
+          params.push(`%${args.query}%`, `%${args.query}%`);
+        }
+        if (args.category) {
+          query += ' AND category = ?';
+          params.push(args.category);
+        }
+
+        query += ' ORDER BY updated_at DESC LIMIT 20';
+        const resources = db.prepare(query).all(...params);
+        return { success: true, resources, count: resources.length };
+      }
+
+      case 'archive_item': {
+        const { type, id } = args;
+        let table, column, value;
+
+        switch (type) {
+          case 'project':
+            table = 'projects'; column = 'status'; value = 'archived';
+            break;
+          case 'todo':
+            table = 'todos'; column = 'is_archived'; value = 1;
+            break;
+          case 'note':
+            table = 'notes'; column = 'is_archived'; value = 1;
+            break;
+          case 'area':
+            table = 'areas'; column = 'is_archived'; value = 1;
+            break;
+          case 'resource':
+            table = 'resources'; column = 'is_archived'; value = 1;
+            break;
+          default:
+            return { success: false, error: 'Ungültiger Typ' };
+        }
+
+        const existing = db.prepare(`SELECT * FROM ${table} WHERE id = ? AND user_id = ?`).get(id, userId);
+        if (!existing) return { success: false, error: 'Element nicht gefunden.' };
+
+        db.prepare(`UPDATE ${table} SET ${column} = ? WHERE id = ?`).run(value, id);
+        return { success: true, message: `Element archiviert.` };
+      }
+
+      case 'restore_item': {
+        const { type, id } = args;
+        let table, column, value;
+
+        switch (type) {
+          case 'project':
+            table = 'projects'; column = 'status'; value = 'active';
+            break;
+          case 'todo':
+            table = 'todos'; column = 'is_archived'; value = 0;
+            break;
+          case 'note':
+            table = 'notes'; column = 'is_archived'; value = 0;
+            break;
+          case 'area':
+            table = 'areas'; column = 'is_archived'; value = 0;
+            break;
+          case 'resource':
+            table = 'resources'; column = 'is_archived'; value = 0;
+            break;
+          default:
+            return { success: false, error: 'Ungültiger Typ' };
+        }
+
+        const existing = db.prepare(`SELECT * FROM ${table} WHERE id = ? AND user_id = ?`).get(id, userId);
+        if (!existing) return { success: false, error: 'Element nicht gefunden.' };
+
+        db.prepare(`UPDATE ${table} SET ${column} = ? WHERE id = ?`).run(value, id);
+        return { success: true, message: `Element wiederhergestellt.` };
       }
 
       default:

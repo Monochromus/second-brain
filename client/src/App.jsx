@@ -8,6 +8,8 @@ import ProjectPage from './pages/ProjectPage';
 import CalendarPage from './pages/CalendarPage';
 import SettingsPage from './pages/SettingsPage';
 import CustomToolsPage from './pages/CustomToolsPage';
+import AreasPage from './pages/AreasPage';
+import ResourcesPage from './pages/ResourcesPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import LoadingSpinner from './components/shared/LoadingSpinner';
@@ -88,6 +90,8 @@ export default function App() {
       >
         <Route index element={<DashboardPage />} />
         <Route path="project/:id" element={<ProjectPage />} />
+        <Route path="areas" element={<AreasPage />} />
+        <Route path="resources" element={<ResourcesPage />} />
         <Route path="calendar" element={<CalendarPage />} />
         <Route path="tools" element={<CustomToolsPage />} />
         <Route path="settings" element={<SettingsPage />} />

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Brain, Search, Settings, LogOut, User, Calendar, Wrench, ChevronDown, CheckCircle, FileText, Folder } from 'lucide-react';
+import { Brain, Search, Settings, LogOut, User, Calendar, Wrench, ChevronDown, CheckCircle, FileText, Folder, FolderOpen, Library } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { api } from '../../lib/api';
 import ThemeToggle from '../shared/ThemeToggle';
@@ -63,6 +63,10 @@ export default function Header() {
       navigate('/');
     } else if (result.type === 'note') {
       navigate('/');
+    } else if (result.type === 'area') {
+      navigate('/areas');
+    } else if (result.type === 'resource') {
+      navigate('/resources');
     }
   }, [navigate]);
 
@@ -89,6 +93,8 @@ export default function Header() {
       case 'project': return <Folder className="w-4 h-4" />;
       case 'todo': return <CheckCircle className="w-4 h-4" />;
       case 'note': return <FileText className="w-4 h-4" />;
+      case 'area': return <FolderOpen className="w-4 h-4" />;
+      case 'resource': return <Library className="w-4 h-4" />;
       default: return null;
     }
   };
@@ -183,6 +189,22 @@ export default function Header() {
               title="Kalender"
             >
               <Calendar className="w-5 h-5" />
+            </Link>
+
+            <Link
+              to="/areas"
+              className="p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-secondary transition-all"
+              title="Bereiche"
+            >
+              <FolderOpen className="w-5 h-5" />
+            </Link>
+
+            <Link
+              to="/resources"
+              className="p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-secondary transition-all"
+              title="Ressourcen"
+            >
+              <Library className="w-5 h-5" />
             </Link>
 
             <Link

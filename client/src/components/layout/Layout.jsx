@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import Header from './Header';
+import ArchiveDrawer from './ArchiveDrawer';
 import AgentInput from '../agent/AgentInput';
 import { useAgent } from '../../hooks/useAgent';
 
@@ -17,6 +18,7 @@ export default function Layout() {
         />
         <Outlet />
       </main>
+      <ArchiveDrawer />
     </div>
   );
 }

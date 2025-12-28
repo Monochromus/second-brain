@@ -16,6 +16,9 @@ const projectsRoutes = require('./routes/projects');
 const calendarRoutes = require('./routes/calendar');
 const agentRoutes = require('./routes/agent');
 const searchRoutes = require('./routes/search');
+const areasRoutes = require('./routes/areas');
+const resourcesRoutes = require('./routes/resources');
+const archiveRoutes = require('./routes/archive');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -52,6 +55,9 @@ app.use('/api/projects', projectsRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/agent', agentRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/areas', areasRoutes);
+app.use('/api/resources', resourcesRoutes);
+app.use('/api/archive', archiveRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({
