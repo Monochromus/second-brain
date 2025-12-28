@@ -26,11 +26,14 @@ export function useAgent(refreshCallbacks = {}) {
     if (refreshCallbacks.calendar) {
       unsubscribers.push(registerRefreshListener('calendar', refreshCallbacks.calendar));
     }
+    if (refreshCallbacks.widgets) {
+      unsubscribers.push(registerRefreshListener('widgets', refreshCallbacks.widgets));
+    }
 
     return () => {
       unsubscribers.forEach(unsub => unsub());
     };
-  }, [registerRefreshListener, refreshCallbacks.todos, refreshCallbacks.notes, refreshCallbacks.projects, refreshCallbacks.calendar]);
+  }, [registerRefreshListener, refreshCallbacks.todos, refreshCallbacks.notes, refreshCallbacks.projects, refreshCallbacks.calendar, refreshCallbacks.widgets]);
 
   return {
     sendMessage: context.sendMessage,

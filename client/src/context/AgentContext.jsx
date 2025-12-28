@@ -76,6 +76,9 @@ export function AgentProvider({ children }) {
         if (actionTypes.some(t => t.includes('calendar') || t.includes('event'))) {
           triggerRefresh('calendar');
         }
+        if (actionTypes.some(t => t.includes('widget'))) {
+          triggerRefresh('widgets');
+        }
       }
 
       return response;

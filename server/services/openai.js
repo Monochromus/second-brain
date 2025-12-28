@@ -36,6 +36,7 @@ Deine Fähigkeiten:
 - Projekte erstellen und verwalten
 - Kalendertermine abrufen und neue erstellen
 - Items miteinander verknüpfen
+- Widgets erstellen, anpassen und löschen (interaktive Mini-Apps wie Uhren, Timer, Rechner, Countdowns)
 
 Regeln:
 1. Führe Aktionen direkt aus, frage nur bei echten Unklarheiten nach
@@ -45,6 +46,7 @@ Regeln:
 5. Nutze Kontext aus bestehenden Projekten und Todos
 6. Bei Zeitangaben wie "morgen", "nächste Woche" berechne das korrekte Datum
 7. Antworte immer auf Deutsch und knapp
+8. Bei Widget-Anfragen: Nutze list_widgets um bestehende Widgets zu sehen, create_widget für neue, update_widget zum Ändern
 
 Heute ist ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.`;
 
@@ -401,6 +403,60 @@ const tools = [
           id: { type: "integer", description: "ID des Elements" }
         },
         required: ["type", "id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_widgets",
+      description: "Listet alle Widgets des Nutzers auf. Widgets sind interaktive Mini-Apps wie Uhren, Timer, Rechner.",
+      parameters: {
+        type: "object",
+        properties: {}
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_widget",
+      description: "Erstellt ein neues Widget basierend auf einer Beschreibung. Das Widget wird von der KI generiert und kann interaktiv sein (Timer, Uhren, Rechner, etc.).",
+      parameters: {
+        type: "object",
+        properties: {
+          description: { type: "string", description: "Beschreibung des gewünschten Widgets in natürlicher Sprache, z.B. 'Ein Pomodoro-Timer mit 25 Minuten' oder 'Eine Weltuhr für Berlin und Tokyo'" }
+        },
+        required: ["description"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_widget",
+      description: "Aktualisiert ein bestehendes Widget mit einer neuen Beschreibung. Das Widget wird neu generiert.",
+      parameters: {
+        type: "object",
+        properties: {
+          id: { type: "string", description: "ID des Widgets" },
+          description: { type: "string", description: "Neue Beschreibung für das Widget" }
+        },
+        required: ["id", "description"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_widget",
+      description: "Löscht ein Widget",
+      parameters: {
+        type: "object",
+        properties: {
+          id: { type: "string", description: "ID des zu löschenden Widgets" }
+        },
+        required: ["id"]
       }
     }
   }
@@ -851,6 +907,221 @@ async function executeToolCall(toolName, args, userId) {
 
         db.prepare(`UPDATE ${table} SET ${column} = ? WHERE id = ?`).run(value, id);
         return { success: true, message: `Element wiederhergestellt.` };
+      }
+
+      case 'list_widgets': {
+        const widgets = db.prepare(`
+          SELECT id, name, description, status, error_message, created_at
+          FROM custom_tools
+          WHERE user_id = ?
+          ORDER BY position ASC
+        `).all(userId);
+        return {
+          success: true,
+          widgets,
+          count: widgets.length,
+          maxWidgets: 3
+        };
+      }
+
+      case 'create_widget': {
+        // Check widget limit (max 3)
+        const widgetCount = db.prepare('SELECT COUNT(*) as count FROM custom_tools WHERE user_id = ?').get(userId);
+        if (widgetCount.count >= 3) {
+          return {
+            success: false,
+            error: 'Du hast bereits 3 Widgets. Lösche ein Widget, um ein neues zu erstellen.'
+          };
+        }
+
+        const { v4: uuidv4 } = require('uuid');
+        const { generateToolCode } = require('./codeGenerator');
+
+        const toolId = uuidv4();
+        const toolName = `Widget ${new Date().toLocaleDateString('de-DE')}`;
+
+        // Get max position
+        const maxPos = db.prepare('SELECT MAX(position) as max FROM custom_tools WHERE user_id = ?').get(userId);
+
+        // Create widget in 'generating' status
+        db.prepare(`
+          INSERT INTO custom_tools (id, user_id, name, description, status, position)
+          VALUES (?, ?, ?, ?, 'generating', ?)
+        `).run(toolId, userId, toolName, args.description, (maxPos.max || 0) + 1);
+
+        // Trigger code generation asynchronously
+        generateToolCode(userId, toolId, args.description)
+          .then(result => {
+            if (result.success) {
+              db.prepare(`
+                UPDATE custom_tools
+                SET generated_code = ?,
+                    parameters_schema = ?,
+                    name = ?,
+                    refresh_interval = ?,
+                    status = 'ready',
+                    error_message = NULL
+                WHERE id = ?
+              `).run(
+                result.code,
+                JSON.stringify(result.parameters || {}),
+                result.name || toolName,
+                result.refreshInterval || 0,
+                toolId
+              );
+
+              // Auto-execute the widget
+              const { executeInSandbox } = require('./sandbox');
+              executeInSandbox(result.code, result.parameters || {})
+                .then(execResult => {
+                  db.prepare(`
+                    UPDATE custom_tools
+                    SET last_result = ?, last_result_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                  `).run(JSON.stringify(execResult), toolId);
+
+                  if (global.io) {
+                    global.io.to(`user:${userId}`).emit('tool:updated', {
+                      toolId,
+                      status: 'ready',
+                      result: execResult,
+                      refreshInterval: result.refreshInterval || 0
+                    });
+                  }
+                })
+                .catch(() => {
+                  if (global.io) {
+                    global.io.to(`user:${userId}`).emit('tool:updated', {
+                      toolId,
+                      status: 'ready',
+                      refreshInterval: result.refreshInterval || 0
+                    });
+                  }
+                });
+            } else {
+              db.prepare(`
+                UPDATE custom_tools
+                SET status = 'error', error_message = ?
+                WHERE id = ?
+              `).run(result.error || 'Unbekannter Fehler', toolId);
+
+              if (global.io) {
+                global.io.to(`user:${userId}`).emit('tool:updated', {
+                  toolId,
+                  status: 'error',
+                  error: result.error
+                });
+              }
+            }
+          })
+          .catch(err => {
+            db.prepare(`
+              UPDATE custom_tools
+              SET status = 'error', error_message = ?
+              WHERE id = ?
+            `).run('Fehler: ' + err.message, toolId);
+          });
+
+        return {
+          success: true,
+          widgetId: toolId,
+          message: `Widget wird erstellt: "${args.description}". Es erscheint in wenigen Sekunden auf der Widgets-Seite.`
+        };
+      }
+
+      case 'update_widget': {
+        const widget = db.prepare('SELECT * FROM custom_tools WHERE id = ? AND user_id = ?').get(args.id, userId);
+        if (!widget) {
+          return { success: false, error: 'Widget nicht gefunden.' };
+        }
+
+        const { generateToolCode } = require('./codeGenerator');
+
+        // Update to generating status
+        db.prepare(`
+          UPDATE custom_tools
+          SET description = ?, status = 'generating', error_message = NULL
+          WHERE id = ?
+        `).run(args.description, args.id);
+
+        // Regenerate code
+        generateToolCode(userId, args.id, args.description)
+          .then(result => {
+            if (result.success) {
+              db.prepare(`
+                UPDATE custom_tools
+                SET generated_code = ?,
+                    parameters_schema = ?,
+                    name = ?,
+                    refresh_interval = ?,
+                    status = 'ready',
+                    error_message = NULL
+                WHERE id = ?
+              `).run(
+                result.code,
+                JSON.stringify(result.parameters || {}),
+                result.name || widget.name,
+                result.refreshInterval || 0,
+                args.id
+              );
+
+              // Auto-execute
+              const { executeInSandbox } = require('./sandbox');
+              executeInSandbox(result.code, result.parameters || {})
+                .then(execResult => {
+                  db.prepare(`
+                    UPDATE custom_tools
+                    SET last_result = ?, last_result_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                  `).run(JSON.stringify(execResult), args.id);
+
+                  if (global.io) {
+                    global.io.to(`user:${userId}`).emit('tool:updated', {
+                      toolId: args.id,
+                      status: 'ready',
+                      result: execResult
+                    });
+                  }
+                })
+                .catch(() => {});
+            } else {
+              db.prepare(`
+                UPDATE custom_tools
+                SET status = 'error', error_message = ?
+                WHERE id = ?
+              `).run(result.error, args.id);
+
+              if (global.io) {
+                global.io.to(`user:${userId}`).emit('tool:updated', {
+                  toolId: args.id,
+                  status: 'error',
+                  error: result.error
+                });
+              }
+            }
+          })
+          .catch(err => {
+            db.prepare(`
+              UPDATE custom_tools
+              SET status = 'error', error_message = ?
+              WHERE id = ?
+            `).run(err.message, args.id);
+          });
+
+        return {
+          success: true,
+          message: `Widget "${widget.name}" wird aktualisiert mit: "${args.description}"`
+        };
+      }
+
+      case 'delete_widget': {
+        const widget = db.prepare('SELECT * FROM custom_tools WHERE id = ? AND user_id = ?').get(args.id, userId);
+        if (!widget) {
+          return { success: false, error: 'Widget nicht gefunden.' };
+        }
+
+        db.prepare('DELETE FROM custom_tools WHERE id = ?').run(args.id);
+        return { success: true, message: `Widget "${widget.name}" gelöscht.` };
       }
 
       default:

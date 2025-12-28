@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Wrench, Info } from 'lucide-react';
 import { useCustomTools } from '../hooks/useCustomTools';
 import { useAgent } from '../hooks/useAgent';
@@ -17,11 +17,19 @@ export default function CustomToolsPage() {
     executeTool,
     updateTool,
     deleteTool,
-    updateParameters
+    updateParameters,
+    refetch
   } = useCustomTools();
 
-  // Agent integration for refresh
-  const refreshCallbacks = useMemo(() => ({}), []);
+  // Agent integration for refresh - refetch widgets when agent creates/updates/deletes them
+  const refetchWidgets = useCallback(() => {
+    refetch();
+  }, [refetch]);
+
+  const refreshCallbacks = useMemo(() => ({
+    widgets: refetchWidgets
+  }), [refetchWidgets]);
+
   useAgent(refreshCallbacks);
 
   // UI state
