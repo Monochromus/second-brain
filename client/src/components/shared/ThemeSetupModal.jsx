@@ -40,7 +40,7 @@ export default function ThemeSetupModal({ isOpen, onComplete }) {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-accent mb-4">
             <Sparkles className="w-7 h-7 text-white" />
           </div>
-          <h2 className="text-xl font-bold text-text-primary">Personalisiere dein Second Brain</h2>
+          <h2 className="text-xl font-bold text-text-primary">Personalisiere deinen Pocket Assistent</h2>
           <p className="text-text-secondary mt-2">
             Wähle dein bevorzugtes Erscheinungsbild. Du kannst dies später in den Einstellungen ändern.
           </p>

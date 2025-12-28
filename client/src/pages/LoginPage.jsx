@@ -33,7 +33,7 @@ export default function LoginPage() {
             <Brain className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-text-primary">Willkommen zurück</h1>
-          <p className="text-text-secondary mt-2">Melde dich bei deinem Second Brain an</p>
+          <p className="text-text-secondary mt-2">Melde dich bei deinem Pocket Assistent an</p>
         </div>
 
         <form onSubmit={handleSubmit} className="card p-6 space-y-4">

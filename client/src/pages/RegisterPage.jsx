@@ -48,7 +48,7 @@ export default function RegisterPage() {
             <Brain className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-text-primary">Konto erstellen</h1>
-          <p className="text-text-secondary mt-2">Starte mit deinem persönlichen Second Brain</p>
+          <p className="text-text-secondary mt-2">Starte mit deinem persönlichen Pocket Assistent</p>
         </div>
 
         <form onSubmit={handleSubmit} className="card p-6 space-y-4">

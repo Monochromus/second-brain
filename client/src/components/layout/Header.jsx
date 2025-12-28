@@ -1,19 +1,95 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Brain, Search, Settings, LogOut, User, Calendar, ChevronDown } from 'lucide-react';
+import { Brain, Search, Settings, LogOut, User, Calendar, Wrench, ChevronDown, CheckCircle, FileText, Folder } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { api } from '../../lib/api';
 import ThemeToggle from '../shared/ThemeToggle';
+import { cn } from '../../lib/utils';
 
 export default function Header() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [showResults, setShowResults] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const searchRef = useRef(null);
+  const inputRef = useRef(null);
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      console.log('Searching for:', searchQuery);
+  // Debounced search
+  useEffect(() => {
+    if (searchQuery.trim().length < 2) {
+      setSearchResults([]);
+      setShowResults(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const response = await api.get(`/search?q=${encodeURIComponent(searchQuery)}&limit=8`);
+        setSearchResults(response.results || []);
+        setShowResults(true);
+        setSelectedIndex(-1);
+      } catch (err) {
+        console.error('Search error:', err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Click outside to close
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        setShowResults(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleResultClick = useCallback((result) => {
+    setShowResults(false);
+    setSearchQuery('');
+    if (result.type === 'project') {
+      navigate(`/project/${result.id}`);
+    } else if (result.type === 'todo') {
+      navigate('/');
+    } else if (result.type === 'note') {
+      navigate('/');
+    }
+  }, [navigate]);
+
+  const handleKeyDown = (e) => {
+    if (!showResults || searchResults.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex(prev => Math.min(prev + 1, searchResults.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex(prev => Math.max(prev - 1, -1));
+    } else if (e.key === 'Enter' && selectedIndex >= 0) {
+      e.preventDefault();
+      handleResultClick(searchResults[selectedIndex]);
+    } else if (e.key === 'Escape') {
+      setShowResults(false);
+      inputRef.current?.blur();
+    }
+  };
+
+  const getIcon = (type) => {
+    switch (type) {
+      case 'project': return <Folder className="w-4 h-4" />;
+      case 'todo': return <CheckCircle className="w-4 h-4" />;
+      case 'note': return <FileText className="w-4 h-4" />;
+      default: return null;
     }
   };
 
@@ -30,21 +106,75 @@ export default function Header() {
             <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
               <Brain className="w-5 h-5 text-white" />
             </div>
-            <span className="text-lg font-semibold text-text-primary">Second Brain</span>
+            <span className="text-lg font-semibold text-text-primary">Pocket Assistent</span>
           </Link>
 
-          <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-md mx-8">
+          <div ref={searchRef} className="hidden md:flex flex-1 max-w-md mx-8 relative">
             <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
+              <Search className={cn(
+                "absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4",
+                isSearching ? "text-accent animate-pulse" : "text-text-secondary"
+              )} />
               <input
+                ref={inputRef}
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Suchen..."
+                onKeyDown={handleKeyDown}
+                onFocus={() => searchQuery.length >= 2 && setShowResults(true)}
+                placeholder="Projekte, Todos, Notizen suchen..."
                 className="w-full pl-10 pr-4 py-2 bg-surface-secondary border border-transparent rounded-lg text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
               />
             </div>
-          </form>
+
+            {showResults && searchResults.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-surface border border-border rounded-lg shadow-lg overflow-hidden z-50 animate-slide-down">
+                {searchResults.map((result, index) => (
+                  <button
+                    key={`${result.type}-${result.id}`}
+                    onClick={() => handleResultClick(result)}
+                    className={cn(
+                      "w-full flex items-center gap-3 px-4 py-3 text-left transition-colors",
+                      index === selectedIndex
+                        ? "bg-accent/10 text-accent"
+                        : "hover:bg-surface-secondary"
+                    )}
+                  >
+                    <span className={cn(
+                      "flex-shrink-0",
+                      result.type === 'project' && "text-accent",
+                      result.type === 'todo' && (result.status === 'done' ? "text-success" : "text-text-secondary"),
+                      result.type === 'note' && "text-blue-500"
+                    )}>
+                      {getIcon(result.type)}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-text-primary truncate">
+                        {result.title}
+                      </p>
+                      <p className="text-xs text-text-secondary">
+                        {result.category}
+                      </p>
+                    </div>
+                    {result.type === 'project' && result.color && (
+                      <span
+                        className="w-3 h-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: result.color }}
+                      />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {showResults && searchResults.length === 0 && searchQuery.length >= 2 && !isSearching && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-surface border border-border rounded-lg shadow-lg p-4 z-50">
+                <p className="text-sm text-text-secondary text-center">
+                  Keine Ergebnisse für "{searchQuery}"
+                </p>
+              </div>
+            )}
+          </div>
 
           <div className="flex items-center gap-2">
             <Link
@@ -53,6 +183,14 @@ export default function Header() {
               title="Kalender"
             >
               <Calendar className="w-5 h-5" />
+            </Link>
+
+            <Link
+              to="/tools"
+              className="p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-secondary transition-all"
+              title="Custom Tools"
+            >
+              <Wrench className="w-5 h-5" />
             </Link>
 
             <ThemeToggle />

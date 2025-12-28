@@ -1,76 +1,42 @@
-import { useState, useCallback } from 'react';
-import { api } from '../lib/api';
-import toast from 'react-hot-toast';
+import { useContext, useEffect } from 'react';
+import { AgentContext } from '../context/AgentContext';
 
-export function useAgent() {
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [lastResponse, setLastResponse] = useState(null);
-  const [history, setHistory] = useState([]);
+export function useAgent(refreshCallbacks = {}) {
+  const context = useContext(AgentContext);
 
-  const sendMessage = useCallback(async (message, onSuccess) => {
-    if (!message.trim()) return null;
+  if (!context) {
+    throw new Error('useAgent must be used within an AgentProvider');
+  }
 
-    setIsProcessing(true);
-    setLastResponse(null);
+  const { registerRefreshListener } = context;
 
-    // Build chat history from last 10 messages (most recent first, so reverse)
-    const chatHistory = history
-      .slice(0, 10)
-      .reverse()
-      .map(entry => ({
-        user: entry.message,
-        assistant: entry.response
-      }));
+  // Register refresh callbacks
+  useEffect(() => {
+    const unsubscribers = [];
 
-    try {
-      const response = await api.post('/agent/chat', { message, chatHistory });
-
-      const historyEntry = {
-        id: Date.now(),
-        message,
-        response: response.response,
-        actions: response.actions || [],
-        timestamp: new Date().toISOString()
-      };
-
-      setHistory((prev) => [historyEntry, ...prev].slice(0, 20));
-      setLastResponse(response);
-
-      if (response.actions && response.actions.length > 0) {
-        const actionTypes = [...new Set(response.actions.map(a => a.tool))];
-        if (actionTypes.some(t => t.includes('todo'))) {
-          onSuccess?.('todos');
-        }
-        if (actionTypes.some(t => t.includes('note'))) {
-          onSuccess?.('notes');
-        }
-        if (actionTypes.some(t => t.includes('project'))) {
-          onSuccess?.('projects');
-        }
-        if (actionTypes.some(t => t.includes('calendar') || t.includes('event'))) {
-          onSuccess?.('calendar');
-        }
-      }
-
-      return response;
-    } catch (err) {
-      toast.error(err.message || 'Fehler bei der Verarbeitung');
-      return null;
-    } finally {
-      setIsProcessing(false);
+    if (refreshCallbacks.todos) {
+      unsubscribers.push(registerRefreshListener('todos', refreshCallbacks.todos));
     }
-  }, []);
+    if (refreshCallbacks.notes) {
+      unsubscribers.push(registerRefreshListener('notes', refreshCallbacks.notes));
+    }
+    if (refreshCallbacks.projects) {
+      unsubscribers.push(registerRefreshListener('projects', refreshCallbacks.projects));
+    }
+    if (refreshCallbacks.calendar) {
+      unsubscribers.push(registerRefreshListener('calendar', refreshCallbacks.calendar));
+    }
 
-  const clearHistory = useCallback(() => {
-    setHistory([]);
-    setLastResponse(null);
-  }, []);
+    return () => {
+      unsubscribers.forEach(unsub => unsub());
+    };
+  }, [registerRefreshListener, refreshCallbacks.todos, refreshCallbacks.notes, refreshCallbacks.projects, refreshCallbacks.calendar]);
 
   return {
-    sendMessage,
-    isProcessing,
-    lastResponse,
-    history,
-    clearHistory
+    sendMessage: context.sendMessage,
+    isProcessing: context.isProcessing,
+    lastResponse: context.lastResponse,
+    history: context.history,
+    clearHistory: context.clearHistory
   };
 }

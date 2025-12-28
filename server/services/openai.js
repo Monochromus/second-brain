@@ -27,7 +27,7 @@ function createOpenAIClient(userId) {
   return new OpenAI({ apiKey });
 }
 
-const SYSTEM_PROMPT = `Du bist der AI-Assistent im "Second Brain" Produktivitätstool.
+const SYSTEM_PROMPT = `Du bist der AI-Assistent im "Pocket Assistent" Produktivitätstool.
 Du hilfst dem Nutzer, Aufgaben zu organisieren, Termine zu planen und Notizen zu verwalten.
 
 Deine Fähigkeiten:

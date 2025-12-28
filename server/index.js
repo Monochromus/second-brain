@@ -15,6 +15,7 @@ const notesRoutes = require('./routes/notes');
 const projectsRoutes = require('./routes/projects');
 const calendarRoutes = require('./routes/calendar');
 const agentRoutes = require('./routes/agent');
+const searchRoutes = require('./routes/search');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -50,6 +51,7 @@ app.use('/api/notes', notesRoutes);
 app.use('/api/projects', projectsRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/agent', agentRoutes);
+app.use('/api/search', searchRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({
@@ -74,7 +76,7 @@ app.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════════════╗
 ║                                                               ║
-║   🧠 Second Brain Server                                      ║
+║   🤖 Pocket Assistent Server                                  ║
 ║                                                               ║
 ║   Server running on http://localhost:${PORT}                    ║
 ║   Environment: ${(process.env.NODE_ENV || 'development').padEnd(12)}                            ║

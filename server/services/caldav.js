@@ -214,7 +214,7 @@ function generateICalEvent(event) {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Second Brain//EN',
+    'PRODID:-//Pocket Assistent//EN',
     'BEGIN:VEVENT',
     `UID:${event.uid}`,
     `DTSTAMP:${formatDate(new Date())}`,

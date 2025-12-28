@@ -1,6 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { format, addDays } from 'date-fns';
-import AgentInput from '../agent/AgentInput';
 import TodayCalendar from './TodayCalendar';
 import TodoList from './TodoList';
 import ProjectGrid from './ProjectGrid';
@@ -55,21 +54,20 @@ export default function Dashboard() {
     refetch: refetchEvents
   } = useCalendar({ start_date: today, end_date: nextWeek });
 
-  const { sendMessage, isProcessing, lastResponse } = useAgent();
+  // Register refresh callbacks for agent
+  const refreshCallbacks = useMemo(() => ({
+    todos: refetchTodos,
+    notes: refetchNotes,
+    projects: refetchProjects,
+    calendar: refetchEvents
+  }), [refetchTodos, refetchNotes, refetchProjects, refetchEvents]);
+
+  useAgent(refreshCallbacks);
 
   const [todoModal, setTodoModal] = useState({ open: false, todo: null });
   const [noteModal, setNoteModal] = useState({ open: false, note: null });
   const [projectModal, setProjectModal] = useState({ open: false, project: null });
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, type: null, id: null });
-
-  const handleAgentMessage = useCallback(async (message) => {
-    await sendMessage(message, (type) => {
-      if (type === 'todos') refetchTodos();
-      if (type === 'notes') refetchNotes();
-      if (type === 'projects') refetchProjects();
-      if (type === 'calendar') refetchEvents();
-    });
-  }, [sendMessage, refetchTodos, refetchNotes, refetchProjects, refetchEvents]);
 
   const handleSaveTodo = async (data) => {
     if (todoModal.todo) {
@@ -113,12 +111,6 @@ export default function Dashboard() {
 
   return (
     <div>
-      <AgentInput
-        onSend={handleAgentMessage}
-        isProcessing={isProcessing}
-        lastResponse={lastResponse}
-      />
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <TodayCalendar events={events} loading={eventsLoading} />
 
