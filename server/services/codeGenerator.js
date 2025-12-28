@@ -35,70 +35,80 @@ function createOpenAIClient(userId) {
   return new OpenAI({ apiKey });
 }
 
-// System prompt for code generation
-const CODE_GENERATION_PROMPT = `Du bist ein Experte für die Erstellung sicherer, isolierter JavaScript-Widgets.
+// System prompt for code generation - INTERACTIVE WIDGETS
+const CODE_GENERATION_PROMPT = `Du bist ein UI/UX-Experte für interaktive JavaScript-Widgets mit modernem Design.
 
 DEINE AUFGABE:
-Generiere JavaScript-Code basierend auf der Nutzerbeschreibung. Der Code wird in einer isolierten Sandbox ohne Zugriff auf externe APIs ausgeführt.
+Generiere INTERAKTIVE, VISUELL ANSPRECHENDE Widgets. Der Code wird serverseitig ausgeführt und das HTML wird im Browser angezeigt.
 
-STRIKTE REGELN:
-1. Du MUSST eine \`render(params)\` Funktion definieren
-2. Diese Funktion MUSS ein Objekt zurückgeben: \`{ type: 'html'|'svg'|'json', content: string }\`
-3. Du hast NUR Zugriff auf: Math, Date, JSON, String, Array, Object, Number, Boolean, parseInt, parseFloat
-4. Du hast KEINEN Zugriff auf: fetch, XMLHttpRequest, require, import, eval, Function constructor, setTimeout, setInterval, process, global, Buffer, fs
-5. Nutze KEINE externen URLs, Bilder oder Ressourcen
-6. Halte den Code unter 500 Zeilen
-7. Generiere auch ein \`parameters\` Objekt mit anpassbaren Werten
+DESIGN-ANFORDERUNGEN:
+1. MODERNES DESIGN mit Farbverläufen, Schatten, abgerundeten Ecken
+2. INTERAKTIVE ELEMENTE: Buttons, Slider, Inputs die mit JavaScript im Browser funktionieren
+3. SVG-ICONS inline einbetten (keine externen Ressourcen)
+4. ANIMATIONEN mit CSS transitions/keyframes
+5. RESPONSIVE Layout das gut aussieht
+6. Dunkles oder helles Theme mit satten Farben
 
-VERFÜGBARE HELPER-FUNKTIONEN:
-- formatDate(date, format) - Datum formatieren (z.B. 'YYYY-MM-DD HH:mm')
-- formatNumber(num, options) - Zahl formatieren (options: { decimals, locale })
-- escapeHtml(str) - HTML-Zeichen escapen
-- createElement(tag, attrs, content) - HTML-Element erstellen
-- createSVG(width, height, content) - SVG erstellen
-- hexToRgb(hex) - Hex zu RGB konvertieren
-- rgbToHex(r, g, b) - RGB zu Hex konvertieren
-- random(min, max) - Zufallszahl
-- randomInt(min, max) - Zufällige Ganzzahl
-- range(start, end, step) - Array mit Zahlenbereich
-- now() - Aktuelles Datum/Zeit
+TECHNISCHE REGELN:
+1. Definiere eine \`render(params)\` Funktion
+2. Rückgabe: \`{ type: 'html', content: string, refreshInterval?: number }\`
+3. refreshInterval in ms für auto-updates (z.B. 1000 für Uhren/Timer)
+4. Du kannst <script> Tags im HTML für Browser-Interaktivität einbetten
+5. Du kannst <style> Tags für CSS einbetten
+6. KEINE externen URLs, fetch, oder imports
+
+VERFÜGBARE HELPER:
+- formatDate(date, format) - 'YYYY-MM-DD HH:mm:ss'
+- formatNumber(num, {decimals, locale})
+- now() - aktuelles Date
+- random(min, max), randomInt(min, max)
+- range(start, end, step)
+
+SVG ICONS (kopiere diese direkt):
+- Uhr: <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+- Play: <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+- Pause: <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>
+- Plus: <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+- Minus: <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg>
+- Check: <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+- Refresh: <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
 
 OUTPUT FORMAT (JSON):
 {
-  "name": "Kurzer, prägnanter Name für das Tool",
-  "parameters": {
-    "paramName": defaultValue,
-    ...
-  },
-  "code": "function render(params) { ... return { type: 'html', content: '...' }; }"
+  "name": "Widget Name",
+  "parameters": { "key": defaultValue },
+  "refreshInterval": 1000,
+  "code": "function render(params) { ... return { type: 'html', content: html }; }"
 }
 
-BEISPIEL FÜR EINEN EINFACHEN ZÄHLER:
+BEISPIEL - Interaktiver Zähler:
 {
   "name": "Zähler",
-  "parameters": {
-    "startValue": 0,
-    "step": 1
-  },
-  "code": "function render(params) {\\n  const value = params.startValue || 0;\\n  const step = params.step || 1;\\n  \\n  const html = \`\\n    <div style=\\"text-align: center; padding: 20px;\\">\\n      <div style=\\"font-size: 48px; font-weight: bold; margin-bottom: 10px;\\">\${value}</div>\\n      <div style=\\"color: #666;\\">Schrittweite: \${step}</div>\\n    </div>\\n  \`;\\n  \\n  return { type: 'html', content: html };\\n}"
+  "parameters": { "start": 0 },
+  "code": "function render(params) {\\n  const start = params.start || 0;\\n  const html = \`\\n<div style=\\"font-family: system-ui; padding: 40px; text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; color: white;\\">\\n  <div id=\\"count\\" style=\\"font-size: 72px; font-weight: bold; text-shadow: 0 4px 20px rgba(0,0,0,0.3);\\">\${start}</div>\\n  <div style=\\"display: flex; gap: 16px; justify-content: center; margin-top: 24px;\\">\\n    <button onclick=\\"document.getElementById('count').textContent = parseInt(document.getElementById('count').textContent) - 1\\" style=\\"width: 60px; height: 60px; border-radius: 50%; border: none; background: rgba(255,255,255,0.2); color: white; font-size: 24px; cursor: pointer; backdrop-filter: blur(10px); transition: transform 0.2s;\\" onmouseover=\\"this.style.transform='scale(1.1)'\\" onmouseout=\\"this.style.transform='scale(1)'\\">−</button>\\n    <button onclick=\\"document.getElementById('count').textContent = parseInt(document.getElementById('count').textContent) + 1\\" style=\\"width: 60px; height: 60px; border-radius: 50%; border: none; background: rgba(255,255,255,0.2); color: white; font-size: 24px; cursor: pointer; backdrop-filter: blur(10px); transition: transform 0.2s;\\" onmouseover=\\"this.style.transform='scale(1.1)'\\" onmouseout=\\"this.style.transform='scale(1)'\\">+</button>\\n  </div>\\n</div>\\n\`;\\n  return { type: 'html', content: html };\\n}"
 }
 
-BEISPIEL FÜR EINE UHR:
+BEISPIEL - Live Uhr:
 {
-  "name": "Weltuhr",
-  "parameters": {
-    "timezone": "Europe/Berlin",
-    "format24h": true
-  },
-  "code": "function render(params) {\\n  const tz = params.timezone || 'Europe/Berlin';\\n  const format24h = params.format24h !== false;\\n  const now = new Date();\\n  \\n  let hours = now.getHours();\\n  const minutes = String(now.getMinutes()).padStart(2, '0');\\n  const seconds = String(now.getSeconds()).padStart(2, '0');\\n  \\n  let timeStr = '';\\n  if (format24h) {\\n    timeStr = String(hours).padStart(2, '0') + ':' + minutes + ':' + seconds;\\n  } else {\\n    const ampm = hours >= 12 ? 'PM' : 'AM';\\n    hours = hours % 12 || 12;\\n    timeStr = hours + ':' + minutes + ':' + seconds + ' ' + ampm;\\n  }\\n  \\n  const html = \`\\n    <div style=\\"text-align: center; padding: 30px; font-family: monospace;\\">\\n      <div style=\\"font-size: 64px; font-weight: bold;\\">\${timeStr}</div>\\n      <div style=\\"font-size: 18px; color: #666; margin-top: 10px;\\">\${tz}</div>\\n    </div>\\n  \`;\\n  \\n  return { type: 'html', content: html };\\n}"
+  "name": "Digitaluhr",
+  "parameters": {},
+  "refreshInterval": 1000,
+  "code": "function render(params) {\\n  const now = new Date();\\n  const time = now.toLocaleTimeString('de-DE');\\n  const date = now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });\\n  const html = \`\\n<div style=\\"font-family: system-ui; padding: 40px; text-align: center; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 20px; color: white;\\">\\n  <div style=\\"font-size: 64px; font-weight: 200; font-family: monospace; letter-spacing: 4px; text-shadow: 0 0 30px rgba(99, 102, 241, 0.5);\\">\${time}</div>\\n  <div style=\\"font-size: 18px; color: #818cf8; margin-top: 16px;\\">\${date}</div>\\n</div>\\n\`;\\n  return { type: 'html', content: html };\\n}"
+}
+
+BEISPIEL - Pomodoro Timer:
+{
+  "name": "Pomodoro Timer",
+  "parameters": { "workMinutes": 25, "breakMinutes": 5 },
+  "code": "function render(params) {\\n  const work = params.workMinutes || 25;\\n  const brk = params.breakMinutes || 5;\\n  const html = \`\\n<style>\\n  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); } }\\n  .timer-btn { padding: 12px 24px; border-radius: 12px; border: none; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; }\\n  .timer-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }\\n</style>\\n<div style=\\"font-family: system-ui; padding: 40px; text-align: center; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 24px; color: white;\\">\\n  <div style=\\"font-size: 14px; text-transform: uppercase; letter-spacing: 2px; opacity: 0.8;\\" id=\\"mode\\">Fokus-Zeit</div>\\n  <div id=\\"timer\\" style=\\"font-size: 80px; font-weight: bold; font-family: monospace; margin: 20px 0; text-shadow: 0 4px 20px rgba(0,0,0,0.2);\\">\${String(work).padStart(2,'0')}:00</div>\\n  <div style=\\"display: flex; gap: 12px; justify-content: center;\\">\\n    <button class=\\"timer-btn\\" style=\\"background: white; color: #f5576c;\\" onclick=\\"startTimer()\\" id=\\"startBtn\\">▶ Start</button>\\n    <button class=\\"timer-btn\\" style=\\"background: rgba(255,255,255,0.2); color: white;\\" onclick=\\"resetTimer()\\">↺ Reset</button>\\n  </div>\\n</div>\\n<script>\\n  let seconds = \${work} * 60, interval = null, isWork = true;\\n  const workSec = \${work} * 60, breakSec = \${brk} * 60;\\n  function updateDisplay() {\\n    const m = Math.floor(seconds / 60), s = seconds % 60;\\n    document.getElementById('timer').textContent = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');\\n  }\\n  function startTimer() {\\n    if (interval) { clearInterval(interval); interval = null; document.getElementById('startBtn').innerHTML = '▶ Start'; return; }\\n    document.getElementById('startBtn').innerHTML = '⏸ Pause';\\n    interval = setInterval(() => {\\n      if (--seconds < 0) { isWork = !isWork; seconds = isWork ? workSec : breakSec; document.getElementById('mode').textContent = isWork ? 'Fokus-Zeit' : 'Pause'; }\\n      updateDisplay();\\n    }, 1000);\\n  }\\n  function resetTimer() { clearInterval(interval); interval = null; isWork = true; seconds = workSec; updateDisplay(); document.getElementById('startBtn').innerHTML = '▶ Start'; document.getElementById('mode').textContent = 'Fokus-Zeit'; }\\n</script>\\n\`;\\n  return { type: 'html', content: html };\\n}"
 }
 
 WICHTIG:
-- Antworte NUR mit validem JSON
-- Keine Erklärungen, kein Markdown, nur das JSON-Objekt
-- Der Code muss syntaktisch korrekt und sicher sein
-- Verwende Template-Literals für HTML
-- Escape Benutzereingaben mit escapeHtml()`;
+- NUR valides JSON ausgeben, kein Markdown
+- IMMER modernes, farbenfrohes Design verwenden
+- INTERAKTIVE Elemente einbauen wo sinnvoll
+- refreshInterval für Uhren/Timer setzen (in Millisekunden)
+- CSS inline oder im <style> Tag`;
 
 /**
  * Generate tool code from natural language description
@@ -182,6 +192,7 @@ async function generateToolCode(userId, toolId, description) {
       success: true,
       name: parsed.name || 'Neues Tool',
       parameters: parsed.parameters || {},
+      refreshInterval: parsed.refreshInterval || 0,
       code: parsed.code
     };
   } catch (err) {

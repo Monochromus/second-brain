@@ -186,6 +186,7 @@ router.post('/generate', asyncHandler(async (req, res) => {
           SET generated_code = ?,
               parameters_schema = ?,
               name = ?,
+              refresh_interval = ?,
               status = 'ready',
               error_message = NULL
           WHERE id = ?
@@ -193,16 +194,41 @@ router.post('/generate', asyncHandler(async (req, res) => {
           result.code,
           JSON.stringify(result.parameters || {}),
           result.name || toolName,
+          result.refreshInterval || 0,
           toolId
         );
 
-        // Emit WebSocket event if available
-        if (global.io) {
-          global.io.to(`user:${userId}`).emit('tool:updated', {
-            toolId,
-            status: 'ready'
+        // Auto-execute the tool after generation
+        const { executeInSandbox } = require('../services/sandbox');
+        executeInSandbox(result.code, result.parameters || {})
+          .then(execResult => {
+            db.prepare(`
+              UPDATE custom_tools
+              SET last_result = ?,
+                  last_result_at = CURRENT_TIMESTAMP
+              WHERE id = ?
+            `).run(JSON.stringify(execResult), toolId);
+
+            // Emit WebSocket event with result
+            if (global.io) {
+              global.io.to(`user:${userId}`).emit('tool:updated', {
+                toolId,
+                status: 'ready',
+                result: execResult,
+                refreshInterval: result.refreshInterval || 0
+              });
+            }
+          })
+          .catch(() => {
+            // Emit without result on execution error
+            if (global.io) {
+              global.io.to(`user:${userId}`).emit('tool:updated', {
+                toolId,
+                status: 'ready',
+                refreshInterval: result.refreshInterval || 0
+              });
+            }
           });
-        }
       } else {
         db.prepare(`
           UPDATE custom_tools

@@ -152,6 +152,7 @@ function initializeDatabase() {
       current_parameters TEXT DEFAULT '{}',
       last_result TEXT,
       last_result_at DATETIME,
+      refresh_interval INTEGER DEFAULT 0,
       status TEXT DEFAULT 'draft' CHECK(status IN ('draft', 'generating', 'ready', 'error')),
       error_message TEXT,
       execution_count INTEGER DEFAULT 0,
@@ -219,6 +220,18 @@ function runMigrations() {
   } catch {
     db.exec('ALTER TABLE notes ADD COLUMN is_archived INTEGER DEFAULT 0');
     console.log('Migration: Added is_archived to notes');
+  }
+
+  // Check and add refresh_interval to custom_tools
+  try {
+    db.prepare('SELECT refresh_interval FROM custom_tools LIMIT 1').get();
+  } catch {
+    try {
+      db.exec('ALTER TABLE custom_tools ADD COLUMN refresh_interval INTEGER DEFAULT 0');
+      console.log('Migration: Added refresh_interval to custom_tools');
+    } catch {
+      // Table might not exist yet, that's ok
+    }
   }
 }
 

@@ -49,13 +49,15 @@ export function useCustomTools() {
       });
 
       // Handle tool updates
-      socket.on('tool:updated', ({ toolId, status, error: toolError }) => {
+      socket.on('tool:updated', ({ toolId, status, error: toolError, result, refreshInterval }) => {
         setTools(prev => prev.map(tool => {
           if (tool.id === toolId) {
             return {
               ...tool,
               status,
-              error_message: toolError || null
+              error_message: toolError || null,
+              last_result: result || tool.last_result,
+              refresh_interval: refreshInterval !== undefined ? refreshInterval : tool.refresh_interval
             };
           }
           return tool;

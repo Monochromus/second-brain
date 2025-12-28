@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  X, Play, RefreshCw, Settings, Maximize2, Minimize2,
+  X, RefreshCw, Settings, Maximize2, Minimize2,
   Loader2, AlertCircle
 } from 'lucide-react';
 import ToolParameterPanel from './ToolParameterPanel';
@@ -19,6 +19,15 @@ export default function ToolExecutionView({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [error, setError] = useState(null);
   const [parameters, setParameters] = useState(tool.current_parameters || {});
+  const iframeRef = useRef(null);
+  const refreshIntervalRef = useRef(null);
+
+  // Auto-execute on mount
+  useEffect(() => {
+    if (tool.status === 'ready' && !tool.last_result) {
+      handleExecute();
+    }
+  }, []);
 
   // Subscribe to real-time updates
   useEffect(() => {
@@ -35,8 +44,24 @@ export default function ToolExecutionView({
     }
   }, [tool.last_result]);
 
-  const handleExecute = async () => {
-    setIsExecuting(true);
+  // Auto-refresh for dynamic tools (clocks, timers that need server-side time)
+  useEffect(() => {
+    const interval = tool.refresh_interval;
+    if (interval && interval > 0 && tool.status === 'ready') {
+      refreshIntervalRef.current = setInterval(() => {
+        handleExecute(true); // silent refresh
+      }, interval);
+
+      return () => {
+        if (refreshIntervalRef.current) {
+          clearInterval(refreshIntervalRef.current);
+        }
+      };
+    }
+  }, [tool.refresh_interval, tool.status]);
+
+  const handleExecute = useCallback(async (silent = false) => {
+    if (!silent) setIsExecuting(true);
     setError(null);
 
     try {
@@ -44,14 +69,14 @@ export default function ToolExecutionView({
       if (response.success) {
         setResult(response.result);
       } else {
-        setError(response.error);
+        if (!silent) setError(response.error);
       }
     } catch (err) {
-      setError(err.message);
+      if (!silent) setError(err.message);
     } finally {
-      setIsExecuting(false);
+      if (!silent) setIsExecuting(false);
     }
-  };
+  }, [tool.id, parameters, onExecute]);
 
   const handleParameterChange = (key, value) => {
     setParameters(prev => ({ ...prev, [key]: value }));
@@ -61,35 +86,67 @@ export default function ToolExecutionView({
     try {
       await onUpdateParameters(tool.id, parameters);
       setShowParams(false);
+      handleExecute(); // Re-execute with new params
     } catch {
       // Error handled in hook
     }
   };
 
-  const renderResult = () => {
+  // Render HTML content in a sandboxed way
+  const renderContent = () => {
     if (!result) {
       return (
         <div className="flex flex-col items-center justify-center h-full text-text-secondary">
-          <Play className="w-12 h-12 mb-4 opacity-50" />
-          <p>Klicke auf "Ausführen" um das Tool zu starten</p>
+          <Loader2 className="w-12 h-12 mb-4 animate-spin opacity-50" />
+          <p>Widget wird geladen...</p>
         </div>
       );
     }
 
     if (result.type === 'error') {
       return (
-        <div className="flex flex-col items-center justify-center h-full text-error">
+        <div className="flex flex-col items-center justify-center h-full text-error p-8">
           <AlertCircle className="w-12 h-12 mb-4" />
-          <p>{result.content}</p>
+          <p className="text-center">{result.content}</p>
         </div>
       );
     }
 
     if (result.type === 'html') {
+      // Use srcdoc for better isolation of scripts
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body {
+              font-family: system-ui, -apple-system, sans-serif;
+              min-height: 100vh;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              padding: 16px;
+              background: transparent;
+            }
+            body > div { width: 100%; }
+          </style>
+        </head>
+        <body>
+          ${result.content}
+        </body>
+        </html>
+      `;
+
       return (
-        <div
-          className="w-full h-full overflow-auto p-4"
-          dangerouslySetInnerHTML={{ __html: result.content }}
+        <iframe
+          ref={iframeRef}
+          srcDoc={htmlContent}
+          className="w-full h-full border-0"
+          sandbox="allow-scripts"
+          title={tool.name}
         />
       );
     }
@@ -97,7 +154,7 @@ export default function ToolExecutionView({
     if (result.type === 'svg') {
       return (
         <div
-          className="w-full h-full flex items-center justify-center overflow-auto"
+          className="w-full h-full flex items-center justify-center overflow-auto p-4"
           dangerouslySetInnerHTML={{ __html: result.content }}
         />
       );
@@ -109,7 +166,7 @@ export default function ToolExecutionView({
           ? JSON.parse(result.content)
           : result.content;
         return (
-          <pre className="w-full h-full overflow-auto p-4 text-sm font-mono">
+          <pre className="w-full h-full overflow-auto p-6 text-sm font-mono bg-surface-secondary rounded-xl">
             {JSON.stringify(data, null, 2)}
           </pre>
         );
@@ -124,6 +181,8 @@ export default function ToolExecutionView({
   const containerClass = isFullscreen
     ? 'fixed inset-0 z-50 bg-surface'
     : 'fixed inset-4 md:inset-10 z-50 bg-surface rounded-2xl shadow-2xl';
+
+  const hasParams = Object.keys(tool.parameters_schema || {}).length > 0;
 
   return (
     <>
@@ -141,34 +200,33 @@ export default function ToolExecutionView({
             <h2 className="text-lg font-semibold text-text-primary truncate">
               {tool.name}
             </h2>
-            <p className="text-sm text-text-secondary truncate">
-              {tool.description}
-            </p>
+            {tool.refresh_interval > 0 && (
+              <span className="inline-flex items-center gap-1 text-xs text-accent mt-1">
+                <RefreshCw className="w-3 h-3" />
+                Auto-Refresh: {tool.refresh_interval / 1000}s
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-2 ml-4">
             <button
-              onClick={handleExecute}
+              onClick={() => handleExecute()}
               disabled={isExecuting}
-              className="btn btn-primary"
+              className="btn btn-secondary"
+              title="Aktualisieren"
             >
               {isExecuting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Läuft...
-                </>
+                <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                <>
-                  <RefreshCw className="w-4 h-4" />
-                  Ausführen
-                </>
+                <RefreshCw className="w-4 h-4" />
               )}
             </button>
 
-            {Object.keys(tool.parameters_schema || {}).length > 0 && (
+            {hasParams && (
               <button
                 onClick={() => setShowParams(!showParams)}
                 className={`btn ${showParams ? 'btn-primary' : 'btn-secondary'}`}
+                title="Parameter"
               >
                 <Settings className="w-4 h-4" />
               </button>
@@ -177,6 +235,7 @@ export default function ToolExecutionView({
             <button
               onClick={() => setIsFullscreen(!isFullscreen)}
               className="btn btn-secondary"
+              title={isFullscreen ? 'Verkleinern' : 'Vollbild'}
             >
               {isFullscreen ? (
                 <Minimize2 className="w-4 h-4" />
@@ -188,6 +247,7 @@ export default function ToolExecutionView({
             <button
               onClick={onClose}
               className="btn btn-secondary"
+              title="Schließen"
             >
               <X className="w-4 h-4" />
             </button>
@@ -195,16 +255,23 @@ export default function ToolExecutionView({
         </div>
 
         {/* Content */}
-        <div className="flex h-[calc(100%-80px)]">
+        <div className="flex h-[calc(100%-65px)]">
           {/* Result Area */}
-          <div className={`flex-1 overflow-hidden ${showParams ? 'border-r border-border' : ''}`}>
+          <div className={`flex-1 overflow-hidden bg-surface-secondary ${showParams ? 'border-r border-border' : ''}`}>
             {error ? (
               <div className="flex flex-col items-center justify-center h-full text-error p-4">
                 <AlertCircle className="w-12 h-12 mb-4" />
                 <p className="text-center">{error}</p>
+                <button
+                  onClick={() => handleExecute()}
+                  className="btn btn-secondary mt-4"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Erneut versuchen
+                </button>
               </div>
             ) : (
-              renderResult()
+              renderContent()
             )}
           </div>
 
@@ -215,7 +282,7 @@ export default function ToolExecutionView({
               values={parameters}
               onChange={handleParameterChange}
               onSave={handleSaveParameters}
-              onExecute={handleExecute}
+              onExecute={() => handleExecute()}
             />
           )}
         </div>
