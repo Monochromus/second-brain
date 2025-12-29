@@ -11,36 +11,36 @@ import './index.css';
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
-      <ThemeProvider>
-        <AuthProvider>
+      <AuthProvider>
+        <ThemeProvider>
           <AgentProvider>
             <App />
-          <Toaster
-            position="bottom-right"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: 'var(--surface)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border)',
-              },
-              success: {
-                iconTheme: {
-                  primary: 'var(--success)',
-                  secondary: 'white',
+            <Toaster
+              position="bottom-right"
+              toastOptions={{
+                duration: 4000,
+                style: {
+                  background: 'var(--surface)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border)',
                 },
-              },
-              error: {
-                iconTheme: {
-                  primary: 'var(--error)',
-                  secondary: 'white',
+                success: {
+                  iconTheme: {
+                    primary: 'var(--success)',
+                    secondary: 'white',
+                  },
                 },
-              },
-            }}
-          />
+                error: {
+                  iconTheme: {
+                    primary: 'var(--error)',
+                    secondary: 'white',
+                  },
+                },
+              }}
+            />
           </AgentProvider>
-        </AuthProvider>
-      </ThemeProvider>
+        </ThemeProvider>
+      </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>
 );

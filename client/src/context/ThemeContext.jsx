@@ -1,4 +1,5 @@
-import { createContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useState, useEffect, useCallback, useRef } from 'react';
+import { useAuth } from '../hooks/useAuth';
 
 export const ThemeContext = createContext(null);
 
@@ -15,30 +16,63 @@ export const ACCENT_COLORS = [
   { id: 'green', name: 'Grün', color: '#16A34A', darkColor: '#22C55E' }
 ];
 
+// Get initial theme from localStorage or system preference (for fast initial render)
+function getInitialTheme() {
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('theme');
+    if (stored) return stored;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  return 'light';
+}
+
+function getInitialAccent() {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('accentColor') || 'amber';
+  }
+  return 'amber';
+}
+
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('theme');
-      if (stored) return stored;
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
-    return 'light';
-  });
+  const { user, updateSettings } = useAuth();
+  const [theme, setThemeState] = useState(getInitialTheme);
+  const [accentColor, setAccentColorState] = useState(getInitialAccent);
+  const [themeConfigured, setThemeConfigured] = useState(false);
+  const isInitialized = useRef(false);
+  const saveTimeoutRef = useRef(null);
 
-  const [accentColor, setAccentColor] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('accentColor') || 'amber';
-    }
-    return 'amber';
-  });
+  // Sync theme settings from user when user logs in or changes
+  useEffect(() => {
+    if (user?.settings) {
+      const { theme: userTheme, accentColor: userAccent, themeConfigured: userConfigured } = user.settings;
 
-  const [themeConfigured, setThemeConfigured] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('themeConfigured') === 'true';
-    }
-    return false;
-  });
+      if (userTheme && userTheme !== theme) {
+        setThemeState(userTheme);
+        localStorage.setItem('theme', userTheme);
+      }
 
+      if (userAccent && userAccent !== accentColor) {
+        setAccentColorState(userAccent);
+        localStorage.setItem('accentColor', userAccent);
+      }
+
+      if (userConfigured !== undefined) {
+        setThemeConfigured(userConfigured);
+        localStorage.setItem('themeConfigured', String(userConfigured));
+      }
+
+      isInitialized.current = true;
+    } else if (user && !user.settings?.themeConfigured) {
+      // User exists but has no theme settings - show setup modal
+      setThemeConfigured(false);
+    } else if (!user) {
+      // No user - use localStorage values
+      const localConfigured = localStorage.getItem('themeConfigured') === 'true';
+      setThemeConfigured(localConfigured);
+    }
+  }, [user]);
+
+  // Apply theme class to document
   useEffect(() => {
     const root = window.document.documentElement;
     root.classList.remove('light', 'dark');
@@ -46,35 +80,93 @@ export function ThemeProvider({ children }) {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
+  // Apply accent color to document
   useEffect(() => {
     const root = window.document.documentElement;
     root.setAttribute('data-accent', accentColor);
     localStorage.setItem('accentColor', accentColor);
   }, [accentColor]);
 
+  // Listen for system theme changes
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleChange = (e) => {
-      const stored = localStorage.getItem('theme');
-      if (!stored) {
-        setTheme(e.matches ? 'dark' : 'light');
+      // Only auto-switch if user hasn't configured theme yet
+      if (!themeConfigured && !user?.settings?.themeConfigured) {
+        setThemeState(e.matches ? 'dark' : 'light');
       }
     };
 
     mediaQuery.addEventListener('change', handleChange);
     return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
+  }, [themeConfigured, user]);
+
+  // Save settings to server (debounced, silent)
+  const saveToServer = useCallback((newSettings) => {
+    if (!user || !updateSettings) return;
+
+    // Clear existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Debounce save to avoid too many requests
+    saveTimeoutRef.current = setTimeout(async () => {
+      const currentSettings = user.settings || {};
+      await updateSettings({
+        settings: {
+          ...currentSettings,
+          ...newSettings
+        }
+      }, { silent: true });
+    }, 500);
+  }, [user, updateSettings]);
+
+  const setTheme = useCallback((newTheme) => {
+    setThemeState(newTheme);
+    localStorage.setItem('theme', newTheme);
+    saveToServer({ theme: newTheme });
+  }, [saveToServer]);
 
   const toggleTheme = useCallback(() => {
-    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
-  }, []);
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+  }, [theme, setTheme]);
 
-  const setLightTheme = useCallback(() => setTheme('light'), []);
-  const setDarkTheme = useCallback(() => setTheme('dark'), []);
+  const setLightTheme = useCallback(() => setTheme('light'), [setTheme]);
+  const setDarkTheme = useCallback(() => setTheme('dark'), [setTheme]);
+
+  const setAccentColor = useCallback((newAccent) => {
+    setAccentColorState(newAccent);
+    localStorage.setItem('accentColor', newAccent);
+    saveToServer({ accentColor: newAccent });
+  }, [saveToServer]);
 
   const markThemeConfigured = useCallback(() => {
-    localStorage.setItem('themeConfigured', 'true');
     setThemeConfigured(true);
+    localStorage.setItem('themeConfigured', 'true');
+
+    // Save all current settings to server (silent)
+    if (user && updateSettings) {
+      const currentSettings = user.settings || {};
+      updateSettings({
+        settings: {
+          ...currentSettings,
+          theme,
+          accentColor,
+          themeConfigured: true
+        }
+      }, { silent: true });
+    }
+  }, [user, updateSettings, theme, accentColor]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
   }, []);
 
   return (

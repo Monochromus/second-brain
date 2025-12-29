@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { useTheme } from './hooks/useTheme';
@@ -20,7 +20,14 @@ import ThemeSetupModal from './components/shared/ThemeSetupModal';
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   const { themeConfigured } = useTheme();
-  const [showThemeSetup, setShowThemeSetup] = useState(!themeConfigured);
+  const [showThemeSetup, setShowThemeSetup] = useState(false);
+
+  // Show theme setup modal when user is loaded and theme is not configured
+  useEffect(() => {
+    if (user && !themeConfigured) {
+      setShowThemeSetup(true);
+    }
+  }, [user, themeConfigured]);
 
   if (loading) {
     return (

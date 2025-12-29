@@ -75,14 +75,18 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const updateSettings = async (data) => {
+  const updateSettings = async (data, { silent = false } = {}) => {
     try {
       const response = await api.put('/auth/settings', data);
       setUser(response.user);
-      toast.success('Einstellungen gespeichert');
+      if (!silent) {
+        toast.success('Einstellungen gespeichert');
+      }
       return { success: true };
     } catch (error) {
-      toast.error(error.message || 'Fehler beim Speichern');
+      if (!silent) {
+        toast.error(error.message || 'Fehler beim Speichern');
+      }
       return { success: false, error: error.message };
     }
   };
