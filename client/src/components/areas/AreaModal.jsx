@@ -1,16 +1,24 @@
 import { useState, useEffect } from 'react';
-import { X, Briefcase, Heart, Home, BookOpen, Users, DollarSign, Dumbbell, GraduationCap, FolderOpen } from 'lucide-react';
+import { X, Briefcase, Heart, Home, BookOpen, Users, DollarSign, Dumbbell, GraduationCap, FolderOpen, Gamepad2, Sparkles, Target, Music, Plane, ShoppingBag, Wrench, Lightbulb } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 const ICONS = [
   { id: 'briefcase', icon: Briefcase, label: 'Arbeit' },
+  { id: 'graduation', icon: GraduationCap, label: 'Schule' },
   { id: 'heart', icon: Heart, label: 'Gesundheit' },
   { id: 'home', icon: Home, label: 'Zuhause' },
   { id: 'book', icon: BookOpen, label: 'Lernen' },
   { id: 'users', icon: Users, label: 'Familie' },
   { id: 'dollar', icon: DollarSign, label: 'Finanzen' },
   { id: 'dumbbell', icon: Dumbbell, label: 'Fitness' },
-  { id: 'graduation', icon: GraduationCap, label: 'Bildung' },
+  { id: 'gamepad', icon: Gamepad2, label: 'Hobbys' },
+  { id: 'sparkles', icon: Sparkles, label: 'Ziele' },
+  { id: 'target', icon: Target, label: 'Ziele' },
+  { id: 'music', icon: Music, label: 'Musik' },
+  { id: 'plane', icon: Plane, label: 'Reisen' },
+  { id: 'shopping', icon: ShoppingBag, label: 'Einkauf' },
+  { id: 'wrench', icon: Wrench, label: 'Projekte' },
+  { id: 'lightbulb', icon: Lightbulb, label: 'Ideen' },
   { id: 'folder', icon: FolderOpen, label: 'Sonstiges' }
 ];
 

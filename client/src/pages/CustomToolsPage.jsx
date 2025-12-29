@@ -1,7 +1,9 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Wrench, Info } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Wrench, Info, AlertTriangle, Settings } from 'lucide-react';
 import { useCustomTools } from '../hooks/useCustomTools';
 import { useAgent } from '../hooks/useAgent';
+import { useAuth } from '../hooks/useAuth';
 import ToolContainer from '../components/customTools/ToolContainer';
 import EmptyContainer from '../components/customTools/EmptyContainer';
 import ToolModal from '../components/customTools/ToolModal';
@@ -10,6 +12,7 @@ import ConfirmDialog from '../components/shared/ConfirmDialog';
 const MAX_CONTAINERS = 3;
 
 export default function CustomToolsPage() {
+  const { user } = useAuth();
   const {
     tools,
     loading,
@@ -20,6 +23,12 @@ export default function CustomToolsPage() {
     updateParameters,
     refetch
   } = useCustomTools();
+
+  // Check if user has own API key and which model is selected
+  const hasOwnApiKey = Boolean(user?.settings?.openaiApiKey?.trim());
+  const selectedModel = user?.settings?.openaiModel || 'gpt-4o-mini';
+  const isBasicModel = !hasOwnApiKey || selectedModel === 'gpt-4o-mini' || selectedModel === 'gpt-5-nano';
+  const showModelWarning = isBasicModel;
 
   // Agent integration for refresh - refetch widgets when agent creates/updates/deletes them
   const refetchWidgets = useCallback(() => {
@@ -103,6 +112,31 @@ export default function CustomToolsPage() {
           {tools.length} / {MAX_CONTAINERS} Tools
         </div>
       </div>
+
+      {/* Model Warning */}
+      {showModelWarning && (
+        <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm text-text-primary font-medium">
+              Tipp für komplexe Tools
+            </p>
+            <p className="text-sm text-text-secondary mt-1">
+              {!hasOwnApiKey
+                ? 'Du nutzt aktuell das kostenlose Standardmodell (GPT-4o Mini). Für komplexere Tools wie interaktive Rechner oder aufwendige Widgets empfehlen wir ein leistungsstärkeres Modell.'
+                : 'Du nutzt aktuell ein einfaches Modell. Für komplexere Tools empfehlen wir GPT-4.1 oder GPT-5.'
+              }
+            </p>
+            <Link
+              to="/settings"
+              className="inline-flex items-center gap-1.5 text-sm text-accent hover:underline mt-2"
+            >
+              <Settings className="w-4 h-4" />
+              {hasOwnApiKey ? 'Modell ändern' : 'Eigenen API-Key eingeben'}
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Container Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">

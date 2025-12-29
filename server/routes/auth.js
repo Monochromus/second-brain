@@ -7,6 +7,100 @@ const { generateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
+/**
+ * Creates sample data for new users to demonstrate the app's capabilities
+ */
+function createSampleDataForUser(userId) {
+  // Create Areas (typical life areas everyone has)
+  const areas = [
+    { name: 'Arbeit', description: 'Berufliche Projekte und Aufgaben', icon: 'briefcase', color: '#3B82F6' },
+    { name: 'Schule', description: 'Schulische Aufgaben und Lernen', icon: 'graduation', color: '#6366F1' },
+    { name: 'Gesundheit', description: 'Fitness, Ernährung und Wohlbefinden', icon: 'heart', color: '#EF4444' },
+    { name: 'Familie & Freunde', description: 'Beziehungen und soziale Aktivitäten', icon: 'users', color: '#10B981' },
+    { name: 'Finanzen', description: 'Budget, Sparen und Investitionen', icon: 'dollar', color: '#F59E0B' },
+    { name: 'Hobbys', description: 'Freizeitaktivitäten und Interessen', icon: 'gamepad', color: '#EC4899' },
+    { name: 'Selbstoptimierung', description: 'Lernen, Wachstum und persönliche Ziele', icon: 'sparkles', color: '#8B5CF6' }
+  ];
+
+  const areaIds = {};
+  areas.forEach((area, index) => {
+    const result = db.prepare(`
+      INSERT INTO areas (user_id, name, description, icon, color, position)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(userId, area.name, area.description, area.icon, area.color, index + 1);
+    areaIds[area.name] = result.lastInsertRowid;
+  });
+
+  // Create a sample project (assigned to "Familie & Freunde" area)
+  const projectResult = db.prepare(`
+    INSERT INTO projects (user_id, name, description, color, area_id, position)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(
+    userId,
+    'Sommerurlaub planen',
+    'Planung für den nächsten Familienurlaub – Recherche, Buchung und Packliste',
+    '#10B981',
+    areaIds['Familie & Freunde'],
+    1
+  );
+  const projectId = projectResult.lastInsertRowid;
+
+  // Create sample todos for the project
+  const todos = [
+    { title: 'Reiseziel recherchieren', description: 'Verschiedene Optionen vergleichen: Strand, Berge oder Städtetrip?', priority: 2 },
+    { title: 'Unterkunft buchen', description: 'Hotel oder Ferienwohnung finden und reservieren', priority: 1 }
+  ];
+
+  todos.forEach((todo, index) => {
+    db.prepare(`
+      INSERT INTO todos (user_id, project_id, title, description, priority, position, area_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(userId, projectId, todo.title, todo.description, todo.priority, index + 1, areaIds['Familie & Freunde']);
+  });
+
+  // Create a sample note (assigned to "Arbeit" area) - using HTML for TipTap editor
+  db.prepare(`
+    INSERT INTO notes (user_id, title, content, tags, color, is_pinned, position, area_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    userId,
+    'Meeting-Notizen Vorlage',
+    `<h2>Meeting: [Titel]</h2><p><strong>Datum:</strong> [Datum]<br><strong>Teilnehmer:</strong> [Namen]</p><h3>Agenda</h3><ol><li>Punkt 1</li><li>Punkt 2</li></ol><h3>Notizen</h3><ul><li></li></ul><h3>Action Items</h3><ul data-type="taskList"><li data-type="taskItem" data-checked="false">Aufgabe 1 (@Person)</li><li data-type="taskItem" data-checked="false">Aufgabe 2 (@Person)</li></ul><h3>Nächste Schritte</h3><ul><li></li></ul>`,
+    JSON.stringify(['Vorlage', 'Meeting']),
+    '#DBEAFE',
+    1,
+    1,
+    areaIds['Arbeit']
+  );
+
+  // Create a sample resource (assigned to "Persönliche Entwicklung" area)
+  db.prepare(`
+    INSERT INTO resources (user_id, title, content, tags, category, position)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(
+    userId,
+    'Die PARA-Methode erklärt',
+    `## Was ist PARA?\n\nPARA ist ein Organisationssystem von Tiago Forte:\n\n- **P**rojekte: Aktive Vorhaben mit einem Enddatum\n- **A**reas: Dauerhafte Verantwortungsbereiche\n- **R**essourcen: Wissen und Referenzmaterial\n- **A**rchiv: Abgeschlossene oder inaktive Inhalte\n\n### Vorteile\n✓ Klare Struktur für alle Lebensbereiche\n✓ Schnelles Wiederfinden von Informationen\n✓ Reduzierter mentaler Aufwand`,
+    JSON.stringify(['Produktivität', 'Organisation']),
+    'Wissen',
+    1
+  );
+
+  // Create a sample Webclip resource
+  db.prepare(`
+    INSERT INTO resources (user_id, title, content, url, tags, category, position)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    userId,
+    'Building a Second Brain – Tiago Forte',
+    'Ein interessanter Artikel über das "Second Brain" Konzept. Später lesen und die wichtigsten Ideen zusammenfassen.',
+    'https://fortelabs.com/blog/basboverview/',
+    JSON.stringify(['Webclip', 'Später lesen']),
+    'Webclips',
+    2
+  );
+}
+
 router.post('/register', asyncHandler(async (req, res) => {
   const { email, password, name } = req.body;
 
@@ -33,7 +127,17 @@ router.post('/register', asyncHandler(async (req, res) => {
     'INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)'
   ).run(email.toLowerCase(), passwordHash, name || null);
 
-  req.session.userId = result.lastInsertRowid;
+  const newUserId = result.lastInsertRowid;
+
+  // Create sample data for the new user
+  try {
+    createSampleDataForUser(newUserId);
+  } catch (err) {
+    console.error('Error creating sample data for user:', err);
+    // Don't fail registration if sample data creation fails
+  }
+
+  req.session.userId = newUserId;
 
   const user = db.prepare('SELECT id, email, name, created_at, settings FROM users WHERE id = ?')
     .get(result.lastInsertRowid);

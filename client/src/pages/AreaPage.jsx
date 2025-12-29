@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Home, FolderOpen, Plus, Pencil, LayoutGrid, Archive, Trash2,
-  Briefcase, Heart, BookOpen, Users, DollarSign, Dumbbell, GraduationCap
+  Briefcase, Heart, BookOpen, Users, DollarSign, Dumbbell, GraduationCap,
+  Gamepad2, Sparkles, Target, Music, Plane, ShoppingBag, Wrench, Lightbulb
 } from 'lucide-react';
 import Breadcrumbs from '../components/shared/Breadcrumbs';
 import LoadingSpinner from '../components/shared/LoadingSpinner';
@@ -22,6 +23,14 @@ const ICONS = {
   dollar: DollarSign,
   dumbbell: Dumbbell,
   graduation: GraduationCap,
+  gamepad: Gamepad2,
+  sparkles: Sparkles,
+  target: Target,
+  music: Music,
+  plane: Plane,
+  shopping: ShoppingBag,
+  wrench: Wrench,
+  lightbulb: Lightbulb,
   folder: FolderOpen
 };
 

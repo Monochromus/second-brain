@@ -140,11 +140,12 @@ export default function ResourcesPage() {
           {resources.map(resource => (
             <div
               key={resource.id}
-              className="card p-5 hover:shadow-md transition-shadow group"
+              className="card p-5 hover:shadow-md transition-shadow group cursor-pointer"
+              onClick={() => setModal({ open: true, resource })}
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-text-primary truncate">
+                  <h3 className="font-semibold text-text-primary truncate hover:text-accent transition-colors">
                     {resource.title}
                   </h3>
                   {resource.category && (
@@ -153,7 +154,7 @@ export default function ResourcesPage() {
                     </span>
                   )}
                 </div>
-                <div className="relative ml-2">
+                <div className="relative ml-2" onClick={(e) => e.stopPropagation()}>
                   <button
                     onClick={() => setMenuOpen(menuOpen === resource.id ? null : resource.id)}
                     className="p-1.5 rounded-lg text-text-secondary hover:bg-surface-secondary opacity-0 group-hover:opacity-100 transition-all"
@@ -211,6 +212,7 @@ export default function ResourcesPage() {
                   href={resource.url}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
                   className="inline-flex items-center gap-1 text-xs text-accent hover:underline mb-3"
                 >
                   <ExternalLink className="w-3 h-3" />

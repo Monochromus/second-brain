@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   Briefcase, Heart, Home, BookOpen, Users, DollarSign,
   Dumbbell, GraduationCap, Plus, MoreVertical, Archive,
-  Pencil, Trash2, FolderOpen
+  Pencil, Trash2, FolderOpen, Gamepad2, Sparkles, Target,
+  Music, Plane, ShoppingBag, Wrench, Lightbulb
 } from 'lucide-react';
 import { useAreas } from '../hooks/useAreas';
 import { useAgent } from '../hooks/useAgent';
@@ -20,6 +21,14 @@ const ICONS = {
   dollar: DollarSign,
   dumbbell: Dumbbell,
   graduation: GraduationCap,
+  gamepad: Gamepad2,
+  sparkles: Sparkles,
+  target: Target,
+  music: Music,
+  plane: Plane,
+  shopping: ShoppingBag,
+  wrench: Wrench,
+  lightbulb: Lightbulb,
   folder: FolderOpen
 };
 
