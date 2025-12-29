@@ -18,9 +18,22 @@ export default function SettingsPage() {
   });
 
   const [apiKeyForm, setApiKeyForm] = useState({
-    openaiApiKey: user?.settings?.openaiApiKey || ''
+    openaiApiKey: user?.settings?.openaiApiKey || '',
+    openaiModel: user?.settings?.openaiModel || ''
   });
   const [showApiKey, setShowApiKey] = useState(false);
+
+  const availableModels = [
+    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', description: 'Günstig & schnell - $0.15/1M Tokens', tier: 'free' },
+    { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', description: 'Besser als 4o-mini, schnell', tier: 'pro' },
+    { id: 'gpt-4.1', name: 'GPT-4.1', description: 'Leistungsstark - ersetzt GPT-4o', tier: 'pro' },
+    { id: 'gpt-5-nano', name: 'GPT-5 Nano', description: 'Sehr günstig - $0.05/1M Tokens', tier: 'pro' },
+    { id: 'gpt-5-mini', name: 'GPT-5 Mini', description: 'Schnelles GPT-5 - $0.50/1M Tokens', tier: 'pro' },
+    { id: 'gpt-5', name: 'GPT-5', description: 'Neuestes Flaggschiff - $1.25/1M Tokens', tier: 'pro' },
+    { id: 'o3-mini', name: 'o3 Mini', description: 'Reasoning-Modell für komplexe Logik', tier: 'pro' }
+  ];
+
+  const hasOwnApiKey = Boolean(apiKeyForm.openaiApiKey?.trim());
 
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -60,12 +73,13 @@ export default function SettingsPage() {
       await updateSettings({
         settings: {
           ...currentSettings,
-          openaiApiKey: apiKeyForm.openaiApiKey
+          openaiApiKey: apiKeyForm.openaiApiKey,
+          openaiModel: apiKeyForm.openaiModel || null
         }
       });
-      toast.success('API-Key gespeichert');
+      toast.success('KI-Einstellungen gespeichert');
     } catch (error) {
-      toast.error('Fehler beim Speichern des API-Keys');
+      toast.error('Fehler beim Speichern');
     } finally {
       setSaving({ ...saving, apiKey: false });
     }
@@ -181,14 +195,14 @@ export default function SettingsPage() {
 
           <form onSubmit={handleSaveApiKey} className="space-y-4">
             <div>
-              <label className="label">OpenAI API-Key</label>
+              <label className="label">OpenAI API-Key (optional)</label>
               <div className="relative">
                 <input
                   type={showApiKey ? 'text' : 'password'}
                   value={apiKeyForm.openaiApiKey}
                   onChange={(e) => setApiKeyForm({ ...apiKeyForm, openaiApiKey: e.target.value })}
                   className="input pr-10"
-                  placeholder="sk-..."
+                  placeholder="sk-... (leer lassen für Standard)"
                 />
                 <button
                   type="button"
@@ -199,7 +213,7 @@ export default function SettingsPage() {
                 </button>
               </div>
               <p className="text-xs text-text-secondary mt-1">
-                Du benötigst einen API-Key von{' '}
+                Optional: Eigener API-Key von{' '}
                 <a
                   href="https://platform.openai.com/api-keys"
                   target="_blank"
@@ -208,15 +222,44 @@ export default function SettingsPage() {
                 >
                   platform.openai.com
                 </a>
-                {' '}um den KI-Assistenten zu nutzen.
               </p>
             </div>
+
+            <div>
+              <label className="label">KI-Modell</label>
+              <select
+                value={hasOwnApiKey ? (apiKeyForm.openaiModel || 'gpt-4o-mini') : 'gpt-4o-mini'}
+                onChange={(e) => setApiKeyForm({ ...apiKeyForm, openaiModel: e.target.value })}
+                className={cn('input', !hasOwnApiKey && 'opacity-50 cursor-not-allowed')}
+                disabled={!hasOwnApiKey}
+              >
+                {availableModels.map((model) => (
+                  <option
+                    key={model.id}
+                    value={model.id}
+                    disabled={!hasOwnApiKey && model.tier === 'pro'}
+                  >
+                    {model.name} {model.tier === 'pro' && !hasOwnApiKey ? '(Pro)' : ''}
+                  </option>
+                ))}
+              </select>
+              {!hasOwnApiKey ? (
+                <p className="text-xs text-text-secondary mt-1">
+                  GPT-4o Mini wird kostenlos verwendet. Eigenen API-Key eingeben um andere Modelle zu wählen.
+                </p>
+              ) : (
+                <p className="text-xs text-text-secondary mt-1">
+                  {availableModels.find(m => m.id === (apiKeyForm.openaiModel || 'gpt-4o-mini'))?.description}
+                </p>
+              )}
+            </div>
+
             <button
               type="submit"
               disabled={saving.apiKey}
               className="btn btn-primary"
             >
-              {saving.apiKey ? 'Speichere...' : 'API-Key speichern'}
+              {saving.apiKey ? 'Speichere...' : 'Speichern'}
             </button>
           </form>
         </div>

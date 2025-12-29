@@ -15,6 +15,20 @@ function getUserApiKey(userId) {
   return null;
 }
 
+// Get user's preferred model from settings
+function getUserModel(userId) {
+  const user = db.prepare('SELECT settings FROM users WHERE id = ?').get(userId);
+  if (user && user.settings) {
+    try {
+      const settings = JSON.parse(user.settings);
+      return settings.openaiModel || null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 // Create OpenAI client with user's API key or fallback to environment variable
 function createOpenAIClient(userId) {
   const userApiKey = getUserApiKey(userId);
@@ -1224,14 +1238,19 @@ async function processAgentRequest(message, userId, chatHistory = []) {
 
   const actions = [];
   let iterations = 0;
-  const maxIterations = 5;
+  const maxIterations = 15;
 
   try {
     while (iterations < maxIterations) {
       iterations++;
 
+      // Only use user's model selection if they have their own API key
+      const userApiKey = getUserApiKey(userId);
+      const userModel = userApiKey ? getUserModel(userId) : null;
+      const model = userModel || process.env.OPENAI_MODEL || 'gpt-4o-mini';
+
       const response = await openai.chat.completions.create({
-        model: process.env.OPENAI_MODEL || 'gpt-4o',
+        model,
         messages,
         tools,
         tool_choice: 'auto'
