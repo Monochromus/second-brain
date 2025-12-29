@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, Loader2 } from 'lucide-react';
+import { Send, Sparkles, Loader2, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 export default function AgentInput({ onSend, isProcessing, lastResponse }) {
   const [message, setMessage] = useState('');
+  const [isResponseExpanded, setIsResponseExpanded] = useState(false);
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -11,6 +12,13 @@ export default function AgentInput({ onSend, isProcessing, lastResponse }) {
       inputRef.current.focus();
     }
   }, [isProcessing]);
+
+  // Collapse response when a new one comes in
+  useEffect(() => {
+    if (lastResponse) {
+      setIsResponseExpanded(false);
+    }
+  }, [lastResponse]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -83,8 +91,29 @@ export default function AgentInput({ onSend, isProcessing, lastResponse }) {
 
       {lastResponse && (
         <div className="mt-3 pt-3 border-t border-white/20 dark:border-white/10">
-          <p className="text-sm text-text-primary">{lastResponse.response}</p>
-          {lastResponse.actions && lastResponse.actions.length > 0 && (
+          <div className="flex items-start justify-between gap-2">
+            <p
+              className={cn(
+                "text-sm text-text-primary flex-1 cursor-pointer",
+                !isResponseExpanded && "line-clamp-1"
+              )}
+              onClick={() => setIsResponseExpanded(!isResponseExpanded)}
+            >
+              {lastResponse.response}
+            </p>
+            <button
+              onClick={() => setIsResponseExpanded(!isResponseExpanded)}
+              className="p-1 rounded-md text-text-secondary hover:text-text-primary hover:bg-white/20 dark:hover:bg-white/10 transition-colors flex-shrink-0"
+              title={isResponseExpanded ? "Einklappen" : "Ausklappen"}
+            >
+              {isResponseExpanded ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+          {isResponseExpanded && lastResponse.actions && lastResponse.actions.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-2">
               {lastResponse.actions.map((action, i) => (
                 <span
