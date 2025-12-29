@@ -46,12 +46,12 @@ export default function ArchiveDrawer() {
   return (
     <>
       {/* Archive Toggle Button */}
-      <div className="fixed bottom-4 right-4 z-40">
+      <div className="fixed bottom-4 right-4 z-40 md:bottom-4 bottom-20">
         <button
           onClick={() => setIsOpen(!isOpen)}
           className={cn(
-            'flex items-center gap-2 px-4 py-2 rounded-full shadow-lg transition-all',
-            'bg-surface border border-border hover:shadow-xl',
+            'flex items-center gap-2 px-4 py-2 rounded-full transition-all',
+            'glass hover:shadow-xl',
             isOpen && 'bg-accent text-white border-accent'
           )}
         >
@@ -71,11 +71,11 @@ export default function ArchiveDrawer() {
       {isOpen && (
         <>
           <div
-            className="fixed inset-0 bg-black/20 z-30"
+            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30"
             onClick={() => setIsOpen(false)}
           />
-          <div className="fixed bottom-16 right-4 w-96 max-h-[60vh] bg-surface border border-border rounded-xl shadow-xl z-40 overflow-hidden animate-slide-up">
-            <div className="p-4 border-b border-border bg-surface-secondary">
+          <div className="fixed md:bottom-16 bottom-24 right-4 w-96 max-w-[calc(100vw-2rem)] max-h-[60vh] glass-strong z-40 overflow-hidden animate-slide-up">
+            <div className="p-4 border-b border-white/20 dark:border-white/10 bg-white/30 dark:bg-white/5">
               <h3 className="font-semibold text-text-primary flex items-center gap-2">
                 <Archive className="w-5 h-5" />
                 Archiv

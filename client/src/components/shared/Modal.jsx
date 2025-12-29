@@ -40,25 +40,25 @@ export default function Modal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
+        className="absolute inset-0 bg-black/40 backdrop-blur-md animate-fade-in"
         onClick={onClose}
       />
       <div
         className={cn(
-          'relative w-full bg-surface rounded-lg shadow-lg border border-border animate-slide-up',
+          'relative w-full glass-strong animate-slide-up',
           'max-h-[90vh] overflow-hidden flex flex-col',
           sizeClasses[size]
         )}
       >
         {(title || showClose) && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-white/20 dark:border-white/10">
             {title && (
               <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
             )}
             {showClose && (
               <button
                 onClick={onClose}
-                className="p-1 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-secondary transition-colors"
+                className="p-1 rounded-lg text-text-secondary hover:text-text-primary hover:bg-white/20 dark:hover:bg-white/10 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>

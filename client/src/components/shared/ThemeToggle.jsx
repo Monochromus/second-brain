@@ -45,7 +45,7 @@ export default function ThemeToggle() {
       {isOpen && (
         <div
           ref={popoverRef}
-          className="absolute right-0 top-full mt-2 w-64 bg-surface border border-border rounded-xl shadow-lg p-4 z-50 animate-fade-in"
+          className="absolute right-0 top-full mt-2 w-64 glass p-4 z-50 animate-fade-in"
         >
           {/* Theme Toggle */}
           <div className="mb-4">

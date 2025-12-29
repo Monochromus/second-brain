@@ -124,7 +124,7 @@ export default function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-surface border-b border-border">
+    <header className="sticky top-0 z-40 glass-strong border-b border-glass-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
@@ -153,7 +153,7 @@ export default function Header() {
             </div>
 
             {showResults && searchResults.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-surface border border-border rounded-lg shadow-lg overflow-hidden z-50 animate-slide-down">
+              <div className="absolute top-full left-0 right-0 mt-2 glass overflow-hidden z-50 animate-slide-down">
                 {searchResults.map((result, index) => (
                   <button
                     key={`${result.type}-${result.id}`}
@@ -193,7 +193,7 @@ export default function Header() {
             )}
 
             {showResults && searchResults.length === 0 && searchQuery.length >= 2 && !isSearching && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-surface border border-border rounded-lg shadow-lg p-4 z-50">
+              <div className="absolute top-full left-0 right-0 mt-2 glass p-4 z-50">
                 <p className="text-sm text-text-secondary text-center">
                   Keine Ergebnisse für "{searchQuery}"
                 </p>
@@ -249,7 +249,7 @@ export default function Header() {
                     className="fixed inset-0 z-10"
                     onClick={() => setShowUserMenu(false)}
                   />
-                  <div className="absolute right-0 top-full mt-2 w-48 bg-surface border border-border rounded-lg shadow-lg py-1 z-20 animate-slide-down">
+                  <div className="absolute right-0 top-full mt-2 w-48 glass py-1 z-20 animate-slide-down">
                     <div className="px-4 py-2 border-b border-border">
                       <p className="text-sm font-medium text-text-primary truncate">
                         {user?.name || 'Benutzer'}

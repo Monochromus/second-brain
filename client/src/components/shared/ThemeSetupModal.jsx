@@ -34,9 +34,9 @@ export default function ThemeSetupModal({ isOpen, onComplete }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-lg max-h-[90vh] bg-surface rounded-2xl shadow-xl border border-border overflow-hidden animate-slide-up flex flex-col">
-        <div className="p-4 sm:p-6 text-center border-b border-border bg-surface-secondary flex-shrink-0">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-fade-in">
+      <div className="w-full max-w-lg max-h-[90vh] glass-strong overflow-hidden animate-slide-up flex flex-col">
+        <div className="p-4 sm:p-6 text-center border-b border-white/20 dark:border-white/10 bg-white/30 dark:bg-white/5 flex-shrink-0">
           <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-accent mb-3 sm:mb-4">
             <Sparkles className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
           </div>
@@ -125,7 +125,7 @@ export default function ThemeSetupModal({ isOpen, onComplete }) {
           </div>
         </div>
 
-        <div className="p-4 sm:p-6 border-t border-border bg-surface-secondary flex-shrink-0">
+        <div className="p-4 sm:p-6 border-t border-white/20 dark:border-white/10 bg-white/30 dark:bg-white/5 flex-shrink-0">
           <button
             onClick={handleSave}
             className="w-full btn btn-primary py-2.5 sm:py-3 text-sm sm:text-base"

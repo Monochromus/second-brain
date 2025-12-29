@@ -35,7 +35,7 @@ export default function AgentInput({ onSend, isProcessing, lastResponse }) {
   ];
 
   return (
-    <div className="card p-4 mb-6">
+    <div className="glass-strong p-4 glass-glow">
       <form onSubmit={handleSubmit}>
         <div className="relative">
           <div className="absolute left-4 top-1/2 -translate-y-1/2">
@@ -54,19 +54,25 @@ export default function AgentInput({ onSend, isProcessing, lastResponse }) {
             placeholder="Was kann ich für dich tun?"
             disabled={isProcessing}
             className={cn(
-              'w-full pl-12 pr-12 py-3 bg-surface-secondary border border-transparent rounded-lg',
+              'w-full pl-12 pr-12 py-3 rounded-xl',
+              'bg-white/50 dark:bg-white/5',
+              'border border-white/30 dark:border-white/10',
               'text-text-primary placeholder:text-text-secondary',
-              'focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent',
-              'transition-all duration-200',
+              'focus:outline-none focus:border-accent focus:bg-white/70 dark:focus:bg-white/10',
+              'transition-all duration-300',
               isProcessing && 'opacity-70'
             )}
+            style={{
+              boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)'
+            }}
           />
           <button
             type="submit"
             disabled={!message.trim() || isProcessing}
             className={cn(
-              'absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-md',
-              'text-text-secondary hover:text-accent hover:bg-surface transition-all',
+              'absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg',
+              'text-text-secondary hover:text-accent hover:bg-white/30 dark:hover:bg-white/10',
+              'transition-all duration-200',
               'disabled:opacity-50 disabled:cursor-not-allowed'
             )}
           >
@@ -76,7 +82,7 @@ export default function AgentInput({ onSend, isProcessing, lastResponse }) {
       </form>
 
       {lastResponse && (
-        <div className="mt-3 pt-3 border-t border-border">
+        <div className="mt-3 pt-3 border-t border-white/20 dark:border-white/10">
           <p className="text-sm text-text-primary">{lastResponse.response}</p>
           {lastResponse.actions && lastResponse.actions.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-2">
@@ -84,10 +90,10 @@ export default function AgentInput({ onSend, isProcessing, lastResponse }) {
                 <span
                   key={i}
                   className={cn(
-                    'text-xs px-2 py-1 rounded-full',
+                    'text-xs px-2 py-1 rounded-full backdrop-blur-sm',
                     action.result?.success
-                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                      : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                      ? 'bg-green-500/20 text-green-700 dark:text-green-400 border border-green-500/30'
+                      : 'bg-red-500/20 text-red-700 dark:text-red-400 border border-red-500/30'
                   )}
                 >
                   {action.tool.replace(/_/g, ' ')}
@@ -104,7 +110,7 @@ export default function AgentInput({ onSend, isProcessing, lastResponse }) {
             <button
               key={i}
               onClick={() => setMessage(example)}
-              className="text-xs px-3 py-1.5 bg-surface-secondary text-text-secondary rounded-full hover:bg-border hover:text-text-primary transition-colors"
+              className="text-xs px-3 py-1.5 rounded-full bg-white/30 dark:bg-white/10 text-text-secondary border border-white/20 dark:border-white/10 hover:bg-white/50 dark:hover:bg-white/20 hover:text-text-primary transition-all duration-200"
             >
               {example}
             </button>
