@@ -1,6 +1,9 @@
-import { createContext, useState, useCallback } from 'react';
-import { api } from '../lib/api';
+import { createContext, useState, useCallback, useEffect, useRef } from 'react';
+import { io } from 'socket.io-client';
+import { api, getToken } from '../lib/api';
 import toast from 'react-hot-toast';
+
+const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || '';
 
 export const AgentContext = createContext(null);
 
@@ -16,6 +19,15 @@ export function AgentProvider({ children }) {
 
   // Event listeners for data refresh
   const [refreshListeners, setRefreshListeners] = useState({});
+
+  // WebSocket ref for capture notifications
+  const socketRef = useRef(null);
+  const refreshListenersRef = useRef(refreshListeners);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    refreshListenersRef.current = refreshListeners;
+  }, [refreshListeners]);
 
   const registerRefreshListener = useCallback((type, callback) => {
     setRefreshListeners(prev => ({
@@ -56,6 +68,73 @@ export function AgentProvider({ children }) {
       }
     }
   }, [triggerRefresh]);
+
+  // WebSocket connection for capture:processed events from iOS Shortcuts
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+
+    try {
+      const socket = io(SOCKET_URL, {
+        auth: { token },
+        transports: ['websocket', 'polling']
+      });
+
+      socket.on('connect', () => {
+        console.log('AgentContext: WebSocket connected for captures');
+      });
+
+      // Handle capture:processed events from iOS Shortcuts
+      socket.on('capture:processed', ({ captureId, result }) => {
+        console.log('Capture processed:', captureId, result);
+
+        // Create history entry for the capture
+        const historyEntry = {
+          id: Date.now(),
+          message: result.type === 'vision' ? '[Kurzbefehl mit Bild]' : '[Kurzbefehl]',
+          response: result.response || 'Verarbeitung abgeschlossen.',
+          actions: result.actions || [],
+          timestamp: new Date().toISOString(),
+          fromCapture: true
+        };
+
+        setHistory((prev) => [historyEntry, ...prev].slice(0, 20));
+        setLastResponse({ response: result.response, actions: result.actions || [] });
+
+        // Show toast notification
+        toast.success('Kurzbefehl verarbeitet!', { icon: '📱' });
+
+        // Trigger data refreshes using ref
+        const listeners = refreshListenersRef.current;
+        const doRefresh = (type) => {
+          (listeners[type] || []).forEach(cb => cb());
+        };
+
+        if (result.actions?.length > 0) {
+          const actionTypes = [...new Set(result.actions.map(a => a.tool))];
+          if (actionTypes.some(t => t.includes('todo'))) doRefresh('todos');
+          if (actionTypes.some(t => t.includes('note'))) doRefresh('notes');
+          if (actionTypes.some(t => t.includes('project'))) doRefresh('projects');
+          if (actionTypes.some(t => t.includes('calendar') || t.includes('event'))) doRefresh('calendar');
+        }
+
+        // Also refresh for vision-created items
+        if (result.created) {
+          if (result.created.todos?.length > 0) doRefresh('todos');
+          if (result.created.notes?.length > 0) doRefresh('notes');
+          if (result.created.appointments?.length > 0) doRefresh('calendar');
+        }
+      });
+
+      socketRef.current = socket;
+
+      return () => {
+        socket.disconnect();
+      };
+    } catch (err) {
+      console.warn('AgentContext: Socket.io not available:', err);
+    }
+  }, []);
 
   // Regular text message
   const sendMessage = useCallback(async (message) => {
