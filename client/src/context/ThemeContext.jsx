@@ -33,44 +33,61 @@ function getInitialAccent() {
   return 'amber';
 }
 
+// Get initial themeConfigured from localStorage
+function getInitialThemeConfigured() {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('themeConfigured') === 'true';
+  }
+  return false;
+}
+
 export function ThemeProvider({ children }) {
-  const { user, updateSettings } = useAuth();
+  const { user, loading, updateSettings } = useAuth();
   const [theme, setThemeState] = useState(getInitialTheme);
   const [accentColor, setAccentColorState] = useState(getInitialAccent);
-  const [themeConfigured, setThemeConfigured] = useState(false);
+  const [themeConfigured, setThemeConfigured] = useState(getInitialThemeConfigured);
   const isInitialized = useRef(false);
   const saveTimeoutRef = useRef(null);
 
   // Sync theme settings from user when user logs in or changes
   useEffect(() => {
-    if (user?.settings) {
-      const { theme: userTheme, accentColor: userAccent, themeConfigured: userConfigured } = user.settings;
+    // Don't do anything while still loading auth state
+    if (loading) return;
 
-      if (userTheme && userTheme !== theme) {
+    if (user) {
+      // User is logged in - always use server-side settings
+      const userSettings = user.settings || {};
+      const { theme: userTheme, accentColor: userAccent, themeConfigured: userConfigured } = userSettings;
+
+      if (userTheme) {
         setThemeState(userTheme);
         localStorage.setItem('theme', userTheme);
       }
 
-      if (userAccent && userAccent !== accentColor) {
+      if (userAccent) {
         setAccentColorState(userAccent);
         localStorage.setItem('accentColor', userAccent);
       }
 
-      if (userConfigured !== undefined) {
-        setThemeConfigured(userConfigured);
-        localStorage.setItem('themeConfigured', String(userConfigured));
+      // For new users or users who haven't configured theme yet, show setup modal
+      // The key check is on userConfigured === true, not just truthy
+      if (userConfigured === true) {
+        setThemeConfigured(true);
+        localStorage.setItem('themeConfigured', 'true');
+      } else {
+        // New user or user hasn't configured theme - show modal
+        setThemeConfigured(false);
+        localStorage.removeItem('themeConfigured');
       }
 
       isInitialized.current = true;
-    } else if (user && !user.settings?.themeConfigured) {
-      // User exists but has no theme settings - show setup modal
-      setThemeConfigured(false);
-    } else if (!user) {
-      // No user - use localStorage values
+    } else {
+      // No user logged in - reset to localStorage defaults but don't show modal
+      // The modal should only show after successful login/registration
       const localConfigured = localStorage.getItem('themeConfigured') === 'true';
       setThemeConfigured(localConfigured);
     }
-  }, [user]);
+  }, [user, loading]);
 
   // Apply theme class to document
   useEffect(() => {

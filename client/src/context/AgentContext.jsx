@@ -1,4 +1,4 @@
-import { createContext, useState, useCallback } from 'react';
+import { createContext, useState, useCallback, useRef } from 'react';
 import { api } from '../lib/api';
 import toast from 'react-hot-toast';
 
@@ -14,27 +14,22 @@ export function AgentProvider({ children }) {
   const [extractedData, setExtractedData] = useState(null);
   const [isConfirming, setIsConfirming] = useState(false);
 
-  // Event listeners for data refresh
-  const [refreshListeners, setRefreshListeners] = useState({});
+  // Event listeners for data refresh - use ref to avoid stale closure
+  const refreshListenersRef = useRef({});
 
   const registerRefreshListener = useCallback((type, callback) => {
-    setRefreshListeners(prev => ({
-      ...prev,
-      [type]: [...(prev[type] || []), callback]
-    }));
+    const listeners = refreshListenersRef.current[type] || [];
+    refreshListenersRef.current[type] = [...listeners, callback];
 
     return () => {
-      setRefreshListeners(prev => ({
-        ...prev,
-        [type]: (prev[type] || []).filter(cb => cb !== callback)
-      }));
+      refreshListenersRef.current[type] = (refreshListenersRef.current[type] || []).filter(cb => cb !== callback);
     };
   }, []);
 
   const triggerRefresh = useCallback((type) => {
-    const listeners = refreshListeners[type] || [];
+    const listeners = refreshListenersRef.current[type] || [];
     listeners.forEach(callback => callback());
-  }, [refreshListeners]);
+  }, []);
 
   const triggerRefreshesForActions = useCallback((actions) => {
     if (actions && actions.length > 0) {

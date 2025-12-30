@@ -55,8 +55,8 @@ export default function SettingsPage() {
     calendar: false
   });
 
-  // Personal API Key state
-  const [personalApiKey, setPersonalApiKey] = useState({
+  // Personal Shortcut Key state
+  const [shortcutKey, setShortcutKey] = useState({
     hasKey: false,
     createdAt: null,
     loading: true
@@ -65,35 +65,35 @@ export default function SettingsPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [generatingKey, setGeneratingKey] = useState(false);
 
-  // Load personal API key status on mount
+  // Load shortcut key status on mount
   useEffect(() => {
-    loadApiKeyStatus();
+    loadShortcutKeyStatus();
   }, []);
 
-  const loadApiKeyStatus = async () => {
+  const loadShortcutKeyStatus = async () => {
     try {
       const response = await api.get('/settings/api-key/status');
-      setPersonalApiKey({
+      setShortcutKey({
         hasKey: response.hasApiKey,
         createdAt: response.createdAt,
         loading: false
       });
     } catch {
-      setPersonalApiKey(prev => ({ ...prev, loading: false }));
+      setShortcutKey(prev => ({ ...prev, loading: false }));
     }
   };
 
-  const handleGenerateApiKey = async () => {
+  const handleGenerateShortcutKey = async () => {
     setGeneratingKey(true);
     try {
       const response = await api.post('/settings/api-key/generate');
       setGeneratedKey(response.apiKey);
-      setPersonalApiKey({
+      setShortcutKey({
         hasKey: true,
         createdAt: response.createdAt,
         loading: false
       });
-      toast.success('API Key generiert!');
+      toast.success('Shortcut Key generiert!');
     } catch (err) {
       toast.error('Fehler beim Generieren des Keys');
     } finally {
@@ -101,17 +101,17 @@ export default function SettingsPage() {
     }
   };
 
-  const handleDeleteApiKey = async () => {
+  const handleDeleteShortcutKey = async () => {
     try {
       await api.delete('/settings/api-key');
-      setPersonalApiKey({
+      setShortcutKey({
         hasKey: false,
         createdAt: null,
         loading: false
       });
       setGeneratedKey(null);
       setShowDeleteConfirm(false);
-      toast.success('API Key widerrufen');
+      toast.success('Shortcut Key widerrufen');
     } catch (err) {
       toast.error('Fehler beim Widerrufen');
     }
@@ -347,7 +347,7 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {personalApiKey.loading ? (
+          {shortcutKey.loading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-6 w-6 border-2 border-accent border-t-transparent" />
             </div>
@@ -360,7 +360,7 @@ export default function SettingsPage() {
                     <Check className="w-5 h-5 text-success mt-0.5" />
                     <div className="flex-1">
                       <p className="font-medium text-text-primary mb-2">
-                        Dein neuer API Key (nur einmalig sichtbar!)
+                        Dein neuer Shortcut Key (nur einmalig sichtbar!)
                       </p>
                       <div className="flex items-center gap-2 p-2 bg-surface-secondary rounded font-mono text-sm break-all">
                         <code className="flex-1">{generatedKey}</code>
@@ -381,13 +381,13 @@ export default function SettingsPage() {
               )}
 
               {/* Key Status */}
-              {personalApiKey.hasKey ? (
+              {shortcutKey.hasKey ? (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-3 bg-surface-secondary rounded-lg">
                     <div>
-                      <p className="font-medium text-text-primary">API Key aktiv</p>
+                      <p className="font-medium text-text-primary">Shortcut Key aktiv</p>
                       <p className="text-xs text-text-secondary">
-                        Erstellt am {new Date(personalApiKey.createdAt).toLocaleDateString('de-DE', {
+                        Erstellt am {new Date(shortcutKey.createdAt).toLocaleDateString('de-DE', {
                           day: '2-digit',
                           month: '2-digit',
                           year: 'numeric',
@@ -398,7 +398,7 @@ export default function SettingsPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={handleGenerateApiKey}
+                        onClick={handleGenerateShortcutKey}
                         disabled={generatingKey}
                         className="btn btn-secondary text-sm"
                       >
@@ -421,14 +421,14 @@ export default function SettingsPage() {
                         <AlertTriangle className="w-5 h-5 text-error mt-0.5" />
                         <div className="flex-1">
                           <p className="font-medium text-text-primary mb-2">
-                            API Key wirklich widerrufen?
+                            Shortcut Key wirklich widerrufen?
                           </p>
                           <p className="text-sm text-text-secondary mb-3">
                             Deine Kurzbefehle werden nicht mehr funktionieren.
                           </p>
                           <div className="flex gap-2">
                             <button
-                              onClick={handleDeleteApiKey}
+                              onClick={handleDeleteShortcutKey}
                               className="btn bg-error text-white hover:bg-error/90"
                             >
                               Widerrufen
@@ -448,15 +448,15 @@ export default function SettingsPage() {
               ) : (
                 <div className="space-y-4">
                   <p className="text-text-secondary">
-                    Generiere einen API Key, um Notizen, Aufgaben und Bilder direkt von
-                    iOS-Kurzbefehlen, Siri oder dem Share-Sheet zu erfassen.
+                    Generiere einen Shortcut Key, um Notizen, Aufgaben und Bilder direkt von
+                    iOS-Kurzbefehlen, Siri oder dem Teilen-Button zu erfassen.
                   </p>
                   <button
-                    onClick={handleGenerateApiKey}
+                    onClick={handleGenerateShortcutKey}
                     disabled={generatingKey}
                     className="btn btn-primary"
                   >
-                    {generatingKey ? 'Generiere...' : 'API Key generieren'}
+                    {generatingKey ? 'Generiere...' : 'Shortcut Key generieren'}
                   </button>
                 </div>
               )}
@@ -467,43 +467,31 @@ export default function SettingsPage() {
                 <div className="space-y-3 text-sm text-text-secondary">
                   <div className="flex items-start gap-3">
                     <span className="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent flex items-center justify-center text-xs font-medium">1</span>
-                    <p>Generiere oben einen API Key und kopiere ihn</p>
+                    <p>Generiere oben einen Shortcut Key und kopiere ihn</p>
                   </div>
                   <div className="flex items-start gap-3">
                     <span className="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent flex items-center justify-center text-xs font-medium">2</span>
-                    <p>Erstelle einen neuen Kurzbefehl in der Kurzbefehle-App</p>
+                    <div>
+                      <p>Lade den Kurzbefehl herunter:</p>
+                      <a
+                        href="https://www.icloud.com/shortcuts/32bbb0645e6f4046b9fa93bc5500a759"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-accent hover:underline mt-1"
+                      >
+                        Second Brain Quick Capture
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <span className="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent flex items-center justify-center text-xs font-medium">3</span>
-                    <div>
-                      <p className="mb-1">Sende einen POST-Request an:</p>
-                      <code className="block p-2 bg-surface-secondary rounded text-xs break-all">
-                        {window.location.origin}/api/capture
-                      </code>
-                    </div>
+                    <p>Bearbeite den Kurzbefehl in der Kurzbefehle-App und trage deinen Shortcut Key ein</p>
                   </div>
-                  <div className="flex items-start gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent flex items-center justify-center text-xs font-medium">4</span>
-                    <div>
-                      <p className="mb-1">Setze den Header:</p>
-                      <code className="block p-2 bg-surface-secondary rounded text-xs">
-                        Authorization: Bearer DEIN_API_KEY
-                      </code>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent flex items-center justify-center text-xs font-medium">5</span>
-                    <div>
-                      <p className="mb-1">JSON-Body Beispiel:</p>
-                      <pre className="block p-2 bg-surface-secondary rounded text-xs overflow-x-auto">
-{`{
-  "text": "Deine Notiz",
-  "image": "base64...",
-  "source": "shortcut"
-}`}
-                      </pre>
-                    </div>
-                  </div>
+                </div>
+                <div className="mt-4 p-3 bg-surface-secondary rounded-lg text-xs text-text-secondary">
+                  <p className="font-medium text-text-primary mb-1">Tipp:</p>
+                  <p>Füge den Kurzbefehl zum Home-Bildschirm hinzu oder aktiviere ihn per Siri. Du kannst auch jedes Foto über den Teilen-Button direkt an den Pocket Assistent senden – zusammen mit einer Textanfrage.</p>
                 </div>
               </div>
             </div>

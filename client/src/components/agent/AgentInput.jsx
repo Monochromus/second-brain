@@ -17,6 +17,7 @@ export default function AgentInput({
 }) {
   const [message, setMessage] = useState('');
   const [isResponseExpanded, setIsResponseExpanded] = useState(false);
+  const [isExamplesExpanded, setIsExamplesExpanded] = useState(false);
   const [showImageUpload, setShowImageUpload] = useState(false);
   const [images, setImages] = useState([]);
   const inputRef = useRef(null);
@@ -232,16 +233,31 @@ export default function AgentInput({
       )}
 
       {!lastResponse && !isProcessing && !showImageUpload && !extractedData && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {examples.map((example, i) => (
-            <button
-              key={i}
-              onClick={() => setMessage(example)}
-              className="text-xs px-3 py-1.5 rounded-full bg-white/30 dark:bg-white/10 text-text-secondary border border-white/20 dark:border-white/10 hover:bg-white/50 dark:hover:bg-white/20 hover:text-text-primary transition-all duration-200"
-            >
-              {example}
-            </button>
-          ))}
+        <div className="mt-2">
+          <button
+            onClick={() => setIsExamplesExpanded(!isExamplesExpanded)}
+            className="p-1 rounded-md text-text-secondary/50 hover:text-text-secondary hover:bg-white/10 transition-all mx-auto block"
+            title={isExamplesExpanded ? "Beispiele ausblenden" : "Beispiele anzeigen"}
+          >
+            {isExamplesExpanded ? (
+              <ChevronUp className="w-4 h-4" />
+            ) : (
+              <ChevronDown className="w-4 h-4" />
+            )}
+          </button>
+          {isExamplesExpanded && (
+            <div className="mt-2 flex flex-wrap gap-2 justify-center">
+              {examples.map((example, i) => (
+                <button
+                  key={i}
+                  onClick={() => setMessage(example)}
+                  className="text-xs px-3 py-1.5 rounded-full bg-white/30 dark:bg-white/10 text-text-secondary border border-white/20 dark:border-white/10 hover:bg-white/50 dark:hover:bg-white/20 hover:text-text-primary transition-all duration-200"
+                >
+                  {example}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
