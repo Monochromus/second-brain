@@ -11,7 +11,7 @@ const TYPE_CONFIG = {
   project: { icon: Folder, label: 'Projekt', plural: 'Projekte' },
   todo: { icon: CheckCircle, label: 'Todo', plural: 'Todos' },
   note: { icon: FileText, label: 'Notiz', plural: 'Notizen' },
-  area: { icon: FolderOpen, label: 'Bereich', plural: 'Bereiche' },
+  area: { icon: FolderOpen, label: 'Area', plural: 'Areas' },
   resource: { icon: Library, label: 'Ressource', plural: 'Ressourcen' }
 };
 

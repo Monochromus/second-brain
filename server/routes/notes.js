@@ -9,9 +9,9 @@ router.use(requireAuth);
 
 router.get('/', asyncHandler(async (req, res) => {
   const userId = req.userId;
-  const { project_id, tags, search, limit } = req.query;
+  const { project_id, area_id, tags, search, limit } = req.query;
 
-  let query = 'SELECT * FROM notes WHERE user_id = ?';
+  let query = 'SELECT * FROM notes WHERE user_id = ? AND is_archived = 0';
   const params = [userId];
 
   if (project_id) {
@@ -20,6 +20,15 @@ router.get('/', asyncHandler(async (req, res) => {
     } else {
       query += ' AND project_id = ?';
       params.push(parseInt(project_id));
+    }
+  }
+
+  if (area_id) {
+    if (area_id === 'null') {
+      query += ' AND area_id IS NULL';
+    } else {
+      query += ' AND area_id = ?';
+      params.push(parseInt(area_id));
     }
   }
 
@@ -83,7 +92,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
 
 router.post('/', asyncHandler(async (req, res) => {
   const userId = req.userId;
-  const { title, content, tags, color, is_pinned, project_id, position } = req.body;
+  const { title, content, tags, color, is_pinned, project_id, area_id, position } = req.body;
 
   if (!title || !title.trim()) {
     return res.status(400).json({ error: 'Titel ist erforderlich.' });
@@ -94,8 +103,8 @@ router.post('/', asyncHandler(async (req, res) => {
   const newPosition = position !== undefined ? position : (maxPosition.max || 0) + 1;
 
   const result = db.prepare(`
-    INSERT INTO notes (user_id, title, content, tags, color, is_pinned, project_id, position)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO notes (user_id, title, content, tags, color, is_pinned, project_id, area_id, position)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     userId,
     title.trim(),
@@ -104,6 +113,7 @@ router.post('/', asyncHandler(async (req, res) => {
     color || null,
     is_pinned ? 1 : 0,
     project_id || null,
+    area_id || null,
     newPosition
   );
 
@@ -122,7 +132,7 @@ router.post('/', asyncHandler(async (req, res) => {
 router.put('/:id', asyncHandler(async (req, res) => {
   const userId = req.userId;
   const { id } = req.params;
-  const { title, content, tags, color, is_pinned, project_id, position } = req.body;
+  const { title, content, tags, color, is_pinned, project_id, area_id, position } = req.body;
 
   const existing = db.prepare('SELECT * FROM notes WHERE id = ? AND user_id = ?')
     .get(id, userId);
@@ -157,6 +167,10 @@ router.put('/:id', asyncHandler(async (req, res) => {
   if (project_id !== undefined) {
     updates.push('project_id = ?');
     params.push(project_id);
+  }
+  if (area_id !== undefined) {
+    updates.push('area_id = ?');
+    params.push(area_id);
   }
   if (position !== undefined) {
     updates.push('position = ?');

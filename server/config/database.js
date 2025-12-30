@@ -251,6 +251,14 @@ function runMigrations() {
     console.log('Migration: Added personal_api_key_created_at to users');
   }
 
+  // Check and add area_id to resources
+  try {
+    db.prepare('SELECT area_id FROM resources LIMIT 1').get();
+  } catch {
+    db.exec('ALTER TABLE resources ADD COLUMN area_id INTEGER REFERENCES areas(id) ON DELETE SET NULL');
+    console.log('Migration: Added area_id to resources');
+  }
+
   // Create captures table if not exists
   db.exec(`
     CREATE TABLE IF NOT EXISTS captures (

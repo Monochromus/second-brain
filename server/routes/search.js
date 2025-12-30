@@ -78,7 +78,7 @@ router.get('/', asyncHandler(async (req, res) => {
   // Combine and limit results
   const results = [
     ...projects.map(p => ({ ...p, category: 'Projekte' })),
-    ...areas.map(a => ({ ...a, category: 'Bereiche' })),
+    ...areas.map(a => ({ ...a, category: 'Areas' })),
     ...resources.map(r => ({ ...r, category: 'Ressourcen' })),
     ...todos.map(t => ({ ...t, category: 'Todos' })),
     ...notes.map(n => ({ ...n, category: 'Notizen' }))

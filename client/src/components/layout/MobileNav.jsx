@@ -1,12 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, LayoutGrid, Calendar, FolderOpen, Wrench } from 'lucide-react';
+import { Home, LayoutGrid, Calendar, FolderOpen, Library } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 const navItems = [
   { path: '/', icon: Home, label: 'Home', exact: true },
   { path: '/projects', icon: LayoutGrid, label: 'Projekte' },
-  { path: '/areas', icon: FolderOpen, label: 'Bereiche' },
-  { path: '/tools', icon: Wrench, label: 'Tools' },
+  { path: '/areas', icon: FolderOpen, label: 'Areas' },
+  { path: '/resources', icon: Library, label: 'Ressourcen' },
   { path: '/calendar', icon: Calendar, label: 'Kalender' },
 ];
 

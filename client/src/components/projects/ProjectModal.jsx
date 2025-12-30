@@ -97,7 +97,7 @@ export default function ProjectModal({ isOpen, onClose, project, onSave, default
         </div>
 
         <div>
-          <label className="label">Bereich</label>
+          <label className="label">Area</label>
           <div className="relative">
             <FolderOpen className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
             <select
@@ -105,7 +105,7 @@ export default function ProjectModal({ isOpen, onClose, project, onSave, default
               onChange={(e) => setFormData({ ...formData, area_id: e.target.value })}
               className="input pl-10"
             >
-              <option value="">Kein Bereich</option>
+              <option value="">Keine Area</option>
               {areas.map((area) => (
                 <option key={area.id} value={area.id}>
                   {area.name}

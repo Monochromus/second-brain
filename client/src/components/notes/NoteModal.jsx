@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Modal from '../shared/Modal';
 import NoteEditor from './NoteEditor';
 import { useProjects } from '../../hooks/useProjects';
+import { useAreas } from '../../hooks/useAreas';
 import { X, Plus } from 'lucide-react';
 
 const colorOptions = [
@@ -16,12 +17,14 @@ const colorOptions = [
 
 export default function NoteModal({ isOpen, onClose, note, onSave }) {
   const { projects } = useProjects({ status: 'active' });
+  const { areas } = useAreas();
   const [formData, setFormData] = useState({
     title: '',
     content: '',
     tags: [],
     color: '',
     project_id: '',
+    area_id: '',
     is_pinned: false
   });
   const [tagInput, setTagInput] = useState('');
@@ -35,6 +38,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave }) {
         tags: note.tags || [],
         color: note.color || '',
         project_id: note.project_id || '',
+        area_id: note.area_id || '',
         is_pinned: note.is_pinned || false
       });
     } else {
@@ -44,6 +48,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave }) {
         tags: [],
         color: '',
         project_id: '',
+        area_id: '',
         is_pinned: false
       });
     }
@@ -84,6 +89,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave }) {
       await onSave({
         ...formData,
         project_id: formData.project_id || null,
+        area_id: formData.area_id || null,
         color: formData.color || null
       });
       onClose();
@@ -177,25 +183,41 @@ export default function NoteModal({ isOpen, onClose, note, onSave }) {
           </div>
 
           <div>
-            <label className="label">Farbe</label>
-            <div className="flex gap-2">
-              {colorOptions.map((color) => (
-                <button
-                  key={color.value || 'default'}
-                  type="button"
-                  onClick={() => setFormData({ ...formData, color: color.value })}
-                  className={`w-8 h-8 rounded-full border-2 transition-all ${
-                    formData.color === color.value
-                      ? 'border-accent scale-110'
-                      : 'border-transparent'
-                  }`}
-                  style={{
-                    backgroundColor: color.value || 'var(--surface-secondary)'
-                  }}
-                  title={color.label}
-                />
+            <label className="label">Area</label>
+            <select
+              value={formData.area_id}
+              onChange={(e) => setFormData({ ...formData, area_id: e.target.value })}
+              className="input"
+            >
+              <option value="">Keine Area</option>
+              {areas.map((area) => (
+                <option key={area.id} value={area.id}>
+                  {area.name}
+                </option>
               ))}
-            </div>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label className="label">Farbe</label>
+          <div className="flex gap-2">
+            {colorOptions.map((color) => (
+              <button
+                key={color.value || 'default'}
+                type="button"
+                onClick={() => setFormData({ ...formData, color: color.value })}
+                className={`w-8 h-8 rounded-full border-2 transition-all ${
+                  formData.color === color.value
+                    ? 'border-accent scale-110'
+                    : 'border-transparent'
+                }`}
+                style={{
+                  backgroundColor: color.value || 'var(--surface-secondary)'
+                }}
+                title={color.label}
+              />
+            ))}
           </div>
         </div>
 

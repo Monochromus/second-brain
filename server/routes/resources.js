@@ -10,7 +10,7 @@ router.use(requireAuth);
 // Get all resources
 router.get('/', asyncHandler(async (req, res) => {
   const userId = req.userId;
-  const { include_archived, category, search } = req.query;
+  const { include_archived, category, search, area_id } = req.query;
 
   let query = 'SELECT * FROM resources WHERE user_id = ?';
   const params = [userId];
@@ -22,6 +22,11 @@ router.get('/', asyncHandler(async (req, res) => {
   if (category) {
     query += ' AND category = ?';
     params.push(category);
+  }
+
+  if (area_id) {
+    query += ' AND area_id = ?';
+    params.push(area_id);
   }
 
   if (search) {
@@ -77,15 +82,15 @@ router.get('/:id', asyncHandler(async (req, res) => {
 // Create resource
 router.post('/', asyncHandler(async (req, res) => {
   const userId = req.userId;
-  const { title, content, url, tags, category } = req.body;
+  const { title, content, url, tags, category, area_id } = req.body;
 
   if (!title || !title.trim()) {
     return res.status(400).json({ error: 'Titel ist erforderlich' });
   }
 
   const result = db.prepare(`
-    INSERT INTO resources (user_id, title, content, url, tags, category, position)
-    VALUES (?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM resources WHERE user_id = ?))
+    INSERT INTO resources (user_id, title, content, url, tags, category, area_id, position)
+    VALUES (?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM resources WHERE user_id = ?))
   `).run(
     userId,
     title.trim(),
@@ -93,6 +98,7 @@ router.post('/', asyncHandler(async (req, res) => {
     url || null,
     JSON.stringify(tags || []),
     category || null,
+    area_id || null,
     userId
   );
 
@@ -107,7 +113,7 @@ router.post('/', asyncHandler(async (req, res) => {
 router.put('/:id', asyncHandler(async (req, res) => {
   const userId = req.userId;
   const { id } = req.params;
-  const { title, content, url, tags, category, is_archived, position } = req.body;
+  const { title, content, url, tags, category, area_id, is_archived, position } = req.body;
 
   const existing = db.prepare('SELECT * FROM resources WHERE id = ? AND user_id = ?').get(id, userId);
   if (!existing) {
@@ -120,6 +126,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
   if (url !== undefined) updates.url = url;
   if (tags !== undefined) updates.tags = JSON.stringify(tags);
   if (category !== undefined) updates.category = category;
+  if (area_id !== undefined) updates.area_id = area_id;
   if (is_archived !== undefined) updates.is_archived = is_archived ? 1 : 0;
   if (position !== undefined) updates.position = position;
 

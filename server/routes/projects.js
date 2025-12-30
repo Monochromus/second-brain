@@ -123,7 +123,7 @@ router.post('/', asyncHandler(async (req, res) => {
   if (area_id) {
     const area = db.prepare('SELECT id FROM areas WHERE id = ? AND user_id = ?').get(area_id, userId);
     if (!area) {
-      return res.status(400).json({ error: 'Bereich nicht gefunden.' });
+      return res.status(400).json({ error: 'Area nicht gefunden.' });
     }
   }
 
@@ -177,7 +177,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
   if (area_id !== undefined && area_id !== null) {
     const area = db.prepare('SELECT id FROM areas WHERE id = ? AND user_id = ?').get(area_id, userId);
     if (!area) {
-      return res.status(400).json({ error: 'Bereich nicht gefunden.' });
+      return res.status(400).json({ error: 'Area nicht gefunden.' });
     }
   }
 

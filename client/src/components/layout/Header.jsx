@@ -10,7 +10,7 @@ import { cn } from '../../lib/utils';
 const navItems = [
   { path: '/', icon: Home, label: 'Dashboard', exact: true },
   { path: '/projects', icon: LayoutGrid, label: 'Projekte' },
-  { path: '/areas', icon: FolderOpen, label: 'Bereiche' },
+  { path: '/areas', icon: FolderOpen, label: 'Areas' },
   { path: '/resources', icon: Library, label: 'Ressourcen' },
   { path: '/tools', icon: Wrench, label: 'Tools' },
   { path: '/calendar', icon: Calendar, label: 'Kalender' },

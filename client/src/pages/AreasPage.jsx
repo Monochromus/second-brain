@@ -45,7 +45,7 @@ export default function AreasPage() {
   } = useAreas();
 
   const refreshCallbacks = useMemo(() => ({
-    // Refresh wenn Agent Bereiche ändert
+    // Refresh wenn Agent Areas ändert
   }), []);
   useAgent(refreshCallbacks);
 
@@ -95,15 +95,15 @@ export default function AreasPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">Bereiche</h1>
-          <p className="text-text-secondary">Deine Verantwortungsbereiche und Lebensbereiche</p>
+          <h1 className="text-2xl font-bold text-text-primary">Areas</h1>
+          <p className="text-text-secondary">Deine Verantwortungsbereiche nach dem PARA-Prinzip</p>
         </div>
         <button
           onClick={() => setModal({ open: true, area: null })}
           className="btn btn-primary"
         >
           <Plus className="w-4 h-4" />
-          Neuer Bereich
+          Neue Area
         </button>
       </div>
 
@@ -113,10 +113,10 @@ export default function AreasPage() {
             <FolderOpen className="w-8 h-8 text-text-secondary" />
           </div>
           <h2 className="text-lg font-semibold text-text-primary mb-2">
-            Keine Bereiche vorhanden
+            Keine Areas vorhanden
           </h2>
           <p className="text-text-secondary mb-6 max-w-md mx-auto">
-            Bereiche helfen dir, deine Verantwortlichkeiten zu organisieren.
+            Areas sind dauerhafte Verantwortungsbereiche nach dem PARA-Prinzip.
             Beispiele: Arbeit, Gesundheit, Familie, Finanzen.
           </p>
           <button
@@ -124,7 +124,7 @@ export default function AreasPage() {
             className="btn btn-primary"
           >
             <Plus className="w-4 h-4" />
-            Ersten Bereich erstellen
+            Erste Area erstellen
           </button>
         </div>
       ) : (
@@ -230,8 +230,8 @@ export default function AreasPage() {
         isOpen={deleteConfirm.open}
         onClose={() => setDeleteConfirm({ open: false, id: null })}
         onConfirm={handleDelete}
-        title="Bereich löschen"
-        message="Möchtest du diesen Bereich wirklich löschen? Zugeordnete Elemente werden nicht gelöscht."
+        title="Area löschen"
+        message="Möchtest du diese Area wirklich löschen? Zugeordnete Elemente werden nicht gelöscht."
         confirmText="Löschen"
       />
     </div>

@@ -16,7 +16,8 @@ router.get('/', asyncHandler(async (req, res) => {
     SELECT a.*,
       (SELECT COUNT(*) FROM projects WHERE area_id = a.id AND status != 'archived') as project_count,
       (SELECT COUNT(*) FROM todos WHERE area_id = a.id AND is_archived = 0) as todo_count,
-      (SELECT COUNT(*) FROM notes WHERE area_id = a.id AND is_archived = 0) as note_count
+      (SELECT COUNT(*) FROM notes WHERE area_id = a.id AND is_archived = 0) as note_count,
+      (SELECT COUNT(*) FROM resources WHERE area_id = a.id AND is_archived = 0) as resource_count
     FROM areas a
     WHERE a.user_id = ?
   `;
@@ -41,7 +42,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
   `).get(id, userId);
 
   if (!area) {
-    return res.status(404).json({ error: 'Bereich nicht gefunden' });
+    return res.status(404).json({ error: 'Area nicht gefunden' });
   }
 
   // Get related items
@@ -58,9 +59,20 @@ router.get('/:id', asyncHandler(async (req, res) => {
   const notes = db.prepare(`
     SELECT * FROM notes WHERE area_id = ? AND user_id = ? AND is_archived = 0
     ORDER BY is_pinned DESC, updated_at DESC
-  `).all(id, userId);
+  `).all(id, userId).map(n => ({
+    ...n,
+    tags: JSON.parse(n.tags || '[]')
+  }));
 
-  res.json({ ...area, projects, todos, notes });
+  const resources = db.prepare(`
+    SELECT * FROM resources WHERE area_id = ? AND user_id = ? AND is_archived = 0
+    ORDER BY position ASC, updated_at DESC
+  `).all(id, userId).map(r => ({
+    ...r,
+    tags: JSON.parse(r.tags || '[]')
+  }));
+
+  res.json({ ...area, projects, todos, notes, resources });
 }));
 
 // Create area
@@ -89,7 +101,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
 
   const existing = db.prepare('SELECT * FROM areas WHERE id = ? AND user_id = ?').get(id, userId);
   if (!existing) {
-    return res.status(404).json({ error: 'Bereich nicht gefunden' });
+    return res.status(404).json({ error: 'Area nicht gefunden' });
   }
 
   const updates = {};
@@ -117,13 +129,14 @@ router.delete('/:id', asyncHandler(async (req, res) => {
 
   const existing = db.prepare('SELECT * FROM areas WHERE id = ? AND user_id = ?').get(id, userId);
   if (!existing) {
-    return res.status(404).json({ error: 'Bereich nicht gefunden' });
+    return res.status(404).json({ error: 'Area nicht gefunden' });
   }
 
   // Unlink items (don't delete them)
   db.prepare('UPDATE projects SET area_id = NULL WHERE area_id = ?').run(id);
   db.prepare('UPDATE todos SET area_id = NULL WHERE area_id = ?').run(id);
   db.prepare('UPDATE notes SET area_id = NULL WHERE area_id = ?').run(id);
+  db.prepare('UPDATE resources SET area_id = NULL WHERE area_id = ?').run(id);
 
   db.prepare('DELETE FROM areas WHERE id = ?').run(id);
   res.json({ success: true });

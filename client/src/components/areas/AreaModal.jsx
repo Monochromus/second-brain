@@ -75,7 +75,7 @@ export default function AreaModal({ isOpen, onClose, area, onSave }) {
       <div className="w-full max-w-md bg-surface rounded-xl shadow-xl border border-border animate-slide-up">
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h2 className="text-lg font-semibold text-text-primary">
-            {area ? 'Bereich bearbeiten' : 'Neuer Bereich'}
+            {area ? 'Area bearbeiten' : 'Neue Area'}
           </h2>
           <button
             onClick={onClose}
@@ -108,7 +108,7 @@ export default function AreaModal({ isOpen, onClose, area, onSave }) {
               value={formData.description}
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
               className="input min-h-[80px] resize-none"
-              placeholder="Worum geht es in diesem Bereich?"
+              placeholder="Worum geht es in dieser Area?"
             />
           </div>
 

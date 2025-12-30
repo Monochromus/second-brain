@@ -18,7 +18,7 @@ export function useAreas(options = {}) {
       setError(null);
     } catch (err) {
       setError(err.message);
-      toast.error('Fehler beim Laden der Bereiche');
+      toast.error('Fehler beim Laden der Areas');
     } finally {
       setLoading(false);
     }
@@ -32,7 +32,7 @@ export function useAreas(options = {}) {
     try {
       const area = await api.post('/areas', data);
       setAreas(prev => [...prev, area]);
-      toast.success('Bereich erstellt');
+      toast.success('Area erstellt');
       return area;
     } catch (err) {
       toast.error(err.message || 'Fehler beim Erstellen');
@@ -44,7 +44,7 @@ export function useAreas(options = {}) {
     try {
       const area = await api.put(`/areas/${id}`, data);
       setAreas(prev => prev.map(a => a.id === id ? area : a));
-      toast.success('Bereich aktualisiert');
+      toast.success('Area aktualisiert');
       return area;
     } catch (err) {
       toast.error(err.message || 'Fehler beim Aktualisieren');
@@ -56,7 +56,7 @@ export function useAreas(options = {}) {
     try {
       await api.delete(`/areas/${id}`);
       setAreas(prev => prev.filter(a => a.id !== id));
-      toast.success('Bereich gelöscht');
+      toast.success('Area gelöscht');
     } catch (err) {
       toast.error(err.message || 'Fehler beim Löschen');
       throw err;
@@ -67,7 +67,7 @@ export function useAreas(options = {}) {
     try {
       await api.post(`/archive/area/${id}`);
       setAreas(prev => prev.filter(a => a.id !== id));
-      toast.success('Bereich archiviert');
+      toast.success('Area archiviert');
     } catch (err) {
       toast.error(err.message || 'Fehler beim Archivieren');
       throw err;

@@ -47,10 +47,10 @@ Du hilfst dem Nutzer, Aufgaben zu organisieren, Termine zu planen und Notizen zu
 Deine Fähigkeiten:
 - Todos erstellen, bearbeiten, priorisieren, abschließen, löschen
 - Notizen erstellen, bearbeiten und durchsuchen
-- Projekte erstellen und verwalten (mit automatischer Bereich-Zuordnung)
+- Projekte erstellen und verwalten (mit automatischer Area-Zuordnung)
 - Kalendertermine abrufen und neue erstellen
 - Items miteinander verknüpfen
-- Bereiche (Areas) verwalten - dauerhafte Verantwortungsbereiche wie Arbeit, Gesundheit, Familie
+- Areas verwalten - dauerhafte Verantwortungsbereiche nach dem PARA-Prinzip wie Arbeit, Gesundheit, Familie
 - Widgets erstellen, anpassen und löschen (interaktive Mini-Apps wie Uhren, Timer, Rechner, Countdowns)
 
 Regeln:
@@ -62,7 +62,7 @@ Regeln:
 6. Bei Zeitangaben wie "morgen", "nächste Woche" berechne das korrekte Datum
 7. Antworte immer auf Deutsch und knapp
 8. Bei Widget-Anfragen: Nutze list_widgets um bestehende Widgets zu sehen, create_widget für neue, update_widget zum Ändern
-9. Bei Projekterstellung: Ordne das Projekt automatisch einem passenden Bereich zu. Nutze zuerst list_areas um bestehende Bereiche zu sehen. Wenn kein passender Bereich existiert, erstelle einen neuen mit create_area, bevor du das Projekt erstellst.
+9. Bei Projekterstellung: Ordne das Projekt automatisch einer passenden Area zu. Nutze zuerst list_areas um bestehende Areas zu sehen. Wenn keine passende Area existiert, erstelle eine neue mit create_area, bevor du das Projekt erstellst.
 
 Heute ist ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.`;
 
@@ -222,7 +222,7 @@ const tools = [
     type: "function",
     function: {
       name: "create_project",
-      description: "Erstellt ein neues Projekt. Projekte sollten einem Bereich zugeordnet werden.",
+      description: "Erstellt ein neues Projekt. Projekte sollten einer Area zugeordnet werden.",
       parameters: {
         type: "object",
         properties: {
@@ -230,7 +230,7 @@ const tools = [
           description: { type: "string", description: "Beschreibung des Projekts" },
           color: { type: "string", description: "Hex-Farbcode, z.B. #D97706" },
           deadline: { type: "string", description: "Deadline im Format YYYY-MM-DD" },
-          area_id: { type: "integer", description: "ID des Bereichs (Area), dem das Projekt zugeordnet werden soll. Nutze list_areas um verfügbare Bereiche zu sehen." }
+          area_id: { type: "integer", description: "ID der Area, der das Projekt zugeordnet werden soll. Nutze list_areas um verfügbare Areas zu sehen." }
         },
         required: ["name"]
       }
@@ -250,7 +250,7 @@ const tools = [
           color: { type: "string" },
           status: { type: "string", enum: ["active", "archived", "completed"] },
           deadline: { type: "string" },
-          area_id: { type: "integer", description: "ID des Bereichs (null zum Entfernen)" }
+          area_id: { type: "integer", description: "ID der Area (null zum Entfernen)" }
         },
         required: ["id"]
       }
@@ -325,7 +325,7 @@ const tools = [
     type: "function",
     function: {
       name: "get_context",
-      description: "Ruft aktuellen Kontext ab: offene Todos, anstehende Termine, aktive Projekte, Bereiche. Nutze dies um den aktuellen Stand zu verstehen.",
+      description: "Ruft aktuellen Kontext ab: offene Todos, anstehende Termine, aktive Projekte, Areas. Nutze dies um den aktuellen Stand zu verstehen.",
       parameters: {
         type: "object",
         properties: {}
@@ -336,12 +336,12 @@ const tools = [
     type: "function",
     function: {
       name: "create_area",
-      description: "Erstellt einen neuen Verantwortungsbereich (Area). Areas sind dauerhafte Bereiche wie 'Arbeit', 'Gesundheit', 'Familie'.",
+      description: "Erstellt eine neue Area. Areas sind dauerhafte Verantwortungsbereiche nach dem PARA-Prinzip wie 'Arbeit', 'Gesundheit', 'Familie'.",
       parameters: {
         type: "object",
         properties: {
-          name: { type: "string", description: "Name des Bereichs" },
-          description: { type: "string", description: "Beschreibung des Bereichs" },
+          name: { type: "string", description: "Name der Area" },
+          description: { type: "string", description: "Beschreibung der Area" },
           icon: { type: "string", description: "Icon-Name (z.B. briefcase, heart, home, book)" },
           color: { type: "string", description: "Hex-Farbcode, z.B. #6366F1" }
         },
@@ -353,7 +353,7 @@ const tools = [
     type: "function",
     function: {
       name: "list_areas",
-      description: "Listet alle Verantwortungsbereiche (Areas) auf",
+      description: "Listet alle Areas auf",
       parameters: {
         type: "object",
         properties: {
@@ -398,7 +398,7 @@ const tools = [
     type: "function",
     function: {
       name: "archive_item",
-      description: "Archiviert ein Element (Todo, Notiz, Projekt, Bereich oder Ressource)",
+      description: "Archiviert ein Element (Todo, Notiz, Projekt, Area oder Ressource)",
       parameters: {
         type: "object",
         properties: {
@@ -690,7 +690,7 @@ async function executeToolCall(toolName, args, userId) {
         if (args.area_id) {
           const area = db.prepare('SELECT id, name FROM areas WHERE id = ? AND user_id = ?').get(args.area_id, userId);
           if (!area) {
-            return { success: false, error: 'Bereich nicht gefunden.' };
+            return { success: false, error: 'Area nicht gefunden.' };
           }
         }
 
@@ -713,7 +713,7 @@ async function executeToolCall(toolName, args, userId) {
           WHERE p.id = ?
         `).get(result.lastInsertRowid);
 
-        const areaInfo = project.area_name ? ` im Bereich "${project.area_name}"` : '';
+        const areaInfo = project.area_name ? ` in Area "${project.area_name}"` : '';
         return { success: true, project, message: `Projekt "${args.name}"${areaInfo} erstellt.` };
       }
 
@@ -874,7 +874,7 @@ async function executeToolCall(toolName, args, userId) {
           userId
         );
         const area = db.prepare('SELECT * FROM areas WHERE id = ?').get(result.lastInsertRowid);
-        return { success: true, area, message: `Bereich "${args.name}" erstellt.` };
+        return { success: true, area, message: `Area "${args.name}" erstellt.` };
       }
 
       case 'list_areas': {

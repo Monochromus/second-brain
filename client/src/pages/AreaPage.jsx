@@ -3,15 +3,20 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Home, FolderOpen, Plus, Pencil, LayoutGrid, Archive, Trash2,
   Briefcase, Heart, BookOpen, Users, DollarSign, Dumbbell, GraduationCap,
-  Gamepad2, Sparkles, Target, Music, Plane, ShoppingBag, Wrench, Lightbulb
+  Gamepad2, Sparkles, Target, Music, Plane, ShoppingBag, Wrench, Lightbulb,
+  FileText, Library, ExternalLink, Tag
 } from 'lucide-react';
 import Breadcrumbs from '../components/shared/Breadcrumbs';
 import LoadingSpinner from '../components/shared/LoadingSpinner';
 import ProjectCard from '../components/projects/ProjectCard';
 import ProjectModal from '../components/projects/ProjectModal';
+import NoteCard from '../components/notes/NoteCard';
+import NoteModal from '../components/notes/NoteModal';
+import ResourceModal from '../components/resources/ResourceModal';
 import AreaModal from '../components/areas/AreaModal';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
 import { api } from '../lib/api';
+import { formatTimeAgo } from '../lib/utils';
 import toast from 'react-hot-toast';
 
 const ICONS = {
@@ -39,15 +44,21 @@ export default function AreaPage() {
   const navigate = useNavigate();
   const [area, setArea] = useState(null);
   const [projects, setProjects] = useState([]);
+  const [notes, setNotes] = useState([]);
+  const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
   const [areaModal, setAreaModal] = useState(false);
   const [projectModal, setProjectModal] = useState({ open: false, project: null });
+  const [noteModal, setNoteModal] = useState({ open: false, note: null });
+  const [resourceModal, setResourceModal] = useState({ open: false, resource: null });
   const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   const fetchArea = async () => {
     try {
       const data = await api.get(`/areas/${id}`);
       setArea(data);
+      setNotes(data.notes || []);
+      setResources(data.resources || []);
       // Projects from area endpoint don't have stats, fetch them separately
       if (data.projects && data.projects.length > 0) {
         const projectsData = await api.get('/projects');
@@ -57,7 +68,7 @@ export default function AreaPage() {
         setProjects([]);
       }
     } catch (err) {
-      toast.error('Bereich nicht gefunden');
+      toast.error('Area nicht gefunden');
       navigate('/areas');
     } finally {
       setLoading(false);
@@ -71,7 +82,7 @@ export default function AreaPage() {
   const handleSaveArea = async (data) => {
     try {
       await api.put(`/areas/${id}`, data);
-      toast.success('Bereich aktualisiert');
+      toast.success('Area aktualisiert');
       fetchArea();
     } catch (err) {
       toast.error(err.message);
@@ -81,7 +92,7 @@ export default function AreaPage() {
   const handleDeleteArea = async () => {
     try {
       await api.delete(`/areas/${id}`);
-      toast.success('Bereich gelöscht');
+      toast.success('Area gelöscht');
       navigate('/areas');
     } catch (err) {
       toast.error(err.message);
@@ -103,6 +114,58 @@ export default function AreaPage() {
     }
   };
 
+  const handleSaveNote = async (data) => {
+    try {
+      if (noteModal.note) {
+        await api.put(`/notes/${noteModal.note.id}`, { ...data, area_id: parseInt(id) });
+        toast.success('Notiz aktualisiert');
+      } else {
+        await api.post('/notes', { ...data, area_id: parseInt(id) });
+        toast.success('Notiz erstellt');
+      }
+      fetchArea();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleDeleteNote = async (noteId) => {
+    try {
+      await api.delete(`/notes/${noteId}`);
+      toast.success('Notiz gelöscht');
+      fetchArea();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleTogglePin = async (noteId) => {
+    const note = notes.find(n => n.id === noteId);
+    if (note) {
+      try {
+        await api.put(`/notes/${noteId}`, { is_pinned: !note.is_pinned });
+        fetchArea();
+      } catch (err) {
+        toast.error(err.message);
+      }
+    }
+  };
+
+  const handleSaveResource = async (data) => {
+    try {
+      if (resourceModal.resource) {
+        await api.put(`/resources/${resourceModal.resource.id}`, { ...data, area_id: parseInt(id) });
+        toast.success('Ressource aktualisiert');
+      } else {
+        await api.post('/resources', { ...data, area_id: parseInt(id) });
+        toast.success('Ressource erstellt');
+      }
+      fetchArea();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -114,7 +177,7 @@ export default function AreaPage() {
   if (!area) {
     return (
       <div className="text-center py-20">
-        <p className="text-text-secondary">Bereich nicht gefunden</p>
+        <p className="text-text-secondary">Area nicht gefunden</p>
       </div>
     );
   }
@@ -123,7 +186,7 @@ export default function AreaPage() {
 
   const breadcrumbItems = [
     { label: 'Dashboard', href: '/', icon: Home },
-    { label: 'Bereiche', href: '/areas', icon: FolderOpen },
+    { label: 'Areas', href: '/areas', icon: FolderOpen },
     { label: area.name }
   ];
 
@@ -149,10 +212,10 @@ export default function AreaPage() {
               {area.description && (
                 <p className="text-text-secondary mt-1">{area.description}</p>
               )}
-              <div className="flex items-center gap-4 mt-3 text-sm text-text-secondary">
+              <div className="flex items-center gap-4 mt-3 text-sm text-text-secondary flex-wrap">
                 <span>{projects.length} Projekte</span>
-                <span>{area.todo_count || 0} Todos</span>
-                <span>{area.note_count || 0} Notizen</span>
+                <span>{notes.length} Notizen</span>
+                <span>{resources.length} Ressourcen</span>
               </div>
             </div>
           </div>
@@ -179,7 +242,7 @@ export default function AreaPage() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-text-primary flex items-center gap-2">
             <LayoutGrid className="w-5 h-5" />
-            Projekte in diesem Bereich
+            Projekte in dieser Area
           </h2>
           <button
             onClick={() => setProjectModal({ open: true, project: null })}
@@ -196,7 +259,7 @@ export default function AreaPage() {
               <LayoutGrid className="w-6 h-6 text-text-secondary" />
             </div>
             <p className="text-text-secondary mb-4">
-              Noch keine Projekte in diesem Bereich
+              Noch keine Projekte in dieser Area
             </p>
             <button
               onClick={() => setProjectModal({ open: true, project: null })}
@@ -217,6 +280,153 @@ export default function AreaPage() {
         )}
       </div>
 
+      {/* Notes Section */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-text-primary flex items-center gap-2">
+            <FileText className="w-5 h-5" />
+            Notizen in dieser Area
+          </h2>
+          <button
+            onClick={() => setNoteModal({ open: true, note: null })}
+            className="btn btn-primary"
+          >
+            <Plus className="w-4 h-4" />
+            Neue Notiz
+          </button>
+        </div>
+
+        {notes.length === 0 ? (
+          <div className="card p-8 text-center">
+            <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-surface-secondary flex items-center justify-center">
+              <FileText className="w-6 h-6 text-text-secondary" />
+            </div>
+            <p className="text-text-secondary mb-4">
+              Noch keine Notizen in dieser Area
+            </p>
+            <button
+              onClick={() => setNoteModal({ open: true, note: null })}
+              className="btn btn-primary"
+            >
+              <Plus className="w-4 h-4" />
+              Erste Notiz erstellen
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {notes.map(note => (
+              <NoteCard
+                key={note.id}
+                note={note}
+                onEdit={(n) => setNoteModal({ open: true, note: n })}
+                onDelete={handleDeleteNote}
+                onTogglePin={handleTogglePin}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Resources Section */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-text-primary flex items-center gap-2">
+            <Library className="w-5 h-5" />
+            Ressourcen in dieser Area
+          </h2>
+          <button
+            onClick={() => setResourceModal({ open: true, resource: null })}
+            className="btn btn-primary"
+          >
+            <Plus className="w-4 h-4" />
+            Neue Ressource
+          </button>
+        </div>
+
+        {resources.length === 0 ? (
+          <div className="card p-8 text-center">
+            <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-surface-secondary flex items-center justify-center">
+              <Library className="w-6 h-6 text-text-secondary" />
+            </div>
+            <p className="text-text-secondary mb-4">
+              Noch keine Ressourcen in dieser Area
+            </p>
+            <button
+              onClick={() => setResourceModal({ open: true, resource: null })}
+              className="btn btn-primary"
+            >
+              <Plus className="w-4 h-4" />
+              Erste Ressource erstellen
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {resources.map(resource => (
+              <div
+                key={resource.id}
+                className="card p-5 hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => setResourceModal({ open: true, resource })}
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-text-primary truncate hover:text-accent transition-colors">
+                      {resource.title}
+                    </h3>
+                    {resource.category && (
+                      <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-accent/10 text-accent mt-1">
+                        {resource.category}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {resource.content && (
+                  <p className="text-sm text-text-secondary line-clamp-3 mb-3">
+                    {resource.content}
+                  </p>
+                )}
+
+                {resource.url && (
+                  <a
+                    href={resource.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex items-center gap-1 text-xs text-accent hover:underline mb-3"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Link öffnen
+                  </a>
+                )}
+
+                {resource.tags && resource.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    {resource.tags.slice(0, 3).map(tag => (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-surface-secondary text-text-secondary"
+                      >
+                        <Tag className="w-3 h-3" />
+                        {tag}
+                      </span>
+                    ))}
+                    {resource.tags.length > 3 && (
+                      <span className="text-xs text-text-secondary">
+                        +{resource.tags.length - 3}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                <p className="text-xs text-text-secondary">
+                  {formatTimeAgo(resource.updated_at)}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <AreaModal
         isOpen={areaModal}
         onClose={() => setAreaModal(false)}
@@ -232,12 +442,26 @@ export default function AreaPage() {
         defaultAreaId={parseInt(id)}
       />
 
+      <NoteModal
+        isOpen={noteModal.open}
+        onClose={() => setNoteModal({ open: false, note: null })}
+        note={noteModal.note}
+        onSave={handleSaveNote}
+      />
+
+      <ResourceModal
+        isOpen={resourceModal.open}
+        onClose={() => setResourceModal({ open: false, resource: null })}
+        resource={resourceModal.resource}
+        onSave={handleSaveResource}
+      />
+
       <ConfirmDialog
         isOpen={deleteConfirm}
         onClose={() => setDeleteConfirm(false)}
         onConfirm={handleDeleteArea}
-        title="Bereich löschen"
-        message="Möchtest du diesen Bereich wirklich löschen? Zugeordnete Projekte werden nicht gelöscht."
+        title="Area löschen"
+        message="Möchtest du diese Area wirklich löschen? Zugeordnete Projekte werden nicht gelöscht."
         confirmText="Löschen"
       />
     </>
