@@ -1,10 +1,24 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, Loader2, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { Send, Sparkles, Loader2, ChevronDown, ChevronUp, Image as ImageIcon, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import ImageUpload from './ImageUpload';
+import ExtractionResults from './ExtractionResults';
 
-export default function AgentInput({ onSend, isProcessing, lastResponse }) {
+export default function AgentInput({
+  onSend,
+  onSendWithImages,
+  isProcessing,
+  lastResponse,
+  visionResponse,
+  extractedData,
+  onConfirmExtraction,
+  onCancelExtraction,
+  isConfirming
+}) {
   const [message, setMessage] = useState('');
   const [isResponseExpanded, setIsResponseExpanded] = useState(false);
+  const [showImageUpload, setShowImageUpload] = useState(false);
+  const [images, setImages] = useState([]);
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -22,7 +36,23 @@ export default function AgentInput({ onSend, isProcessing, lastResponse }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (message.trim() && !isProcessing) {
+
+    if (isProcessing) return;
+
+    // If we have images, send with images
+    if (images.length > 0) {
+      const files = images.map(img => img.file);
+      onSendWithImages(message, files);
+      setMessage('');
+      // Clear images after sending
+      images.forEach(img => URL.revokeObjectURL(img.preview));
+      setImages([]);
+      setShowImageUpload(false);
+      return;
+    }
+
+    // Regular text-only send
+    if (message.trim()) {
       onSend(message);
       setMessage('');
     }
@@ -35,6 +65,15 @@ export default function AgentInput({ onSend, isProcessing, lastResponse }) {
     }
   };
 
+  const toggleImageUpload = () => {
+    setShowImageUpload(!showImageUpload);
+    if (showImageUpload) {
+      // Clear images when closing
+      images.forEach(img => URL.revokeObjectURL(img.preview));
+      setImages([]);
+    }
+  };
+
   const examples = [
     'Erstelle ein Todo "Präsentation vorbereiten" für morgen',
     'Zeige meine offenen Aufgaben',
@@ -44,6 +83,30 @@ export default function AgentInput({ onSend, isProcessing, lastResponse }) {
 
   return (
     <div className="glass-strong p-4 glass-glow">
+      {/* Image Upload Area */}
+      {showImageUpload && !extractedData && (
+        <div className="mb-4">
+          <ImageUpload
+            images={images}
+            onImagesChange={setImages}
+            disabled={isProcessing}
+          />
+        </div>
+      )}
+
+      {/* Extraction Results - shown when vision analysis is complete */}
+      {extractedData && (
+        <div className="mb-4">
+          <ExtractionResults
+            visionResponse={visionResponse}
+            extractions={extractedData}
+            onConfirm={onConfirmExtraction}
+            onCancel={onCancelExtraction}
+            isConfirming={isConfirming}
+          />
+        </div>
+      )}
+
       <form onSubmit={handleSubmit}>
         <div className="relative">
           <div className="absolute left-4 top-1/2 -translate-y-1/2">
@@ -59,10 +122,10 @@ export default function AgentInput({ onSend, isProcessing, lastResponse }) {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Was kann ich für dich tun?"
+            placeholder={images.length > 0 ? "Frage zum Bild oder Anweisung..." : "Was kann ich für dich tun?"}
             disabled={isProcessing}
             className={cn(
-              'w-full pl-12 pr-12 py-3 rounded-xl',
+              'w-full pl-12 pr-24 py-3 rounded-xl',
               'bg-white/50 dark:bg-white/5',
               'border border-white/30 dark:border-white/10',
               'text-text-primary placeholder:text-text-secondary',
@@ -74,22 +137,57 @@ export default function AgentInput({ onSend, isProcessing, lastResponse }) {
               boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)'
             }}
           />
-          <button
-            type="submit"
-            disabled={!message.trim() || isProcessing}
-            className={cn(
-              'absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg',
-              'text-text-secondary hover:text-accent hover:bg-white/30 dark:hover:bg-white/10',
-              'transition-all duration-200',
-              'disabled:opacity-50 disabled:cursor-not-allowed'
-            )}
-          >
-            <Send className="w-5 h-5" />
-          </button>
+
+          {/* Action Buttons */}
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+            {/* Image Upload Toggle */}
+            <button
+              type="button"
+              onClick={toggleImageUpload}
+              disabled={isProcessing}
+              className={cn(
+                'p-2 rounded-lg',
+                'transition-all duration-200',
+                'disabled:opacity-50 disabled:cursor-not-allowed',
+                showImageUpload || images.length > 0
+                  ? 'text-accent bg-accent/10'
+                  : 'text-text-secondary hover:text-accent hover:bg-white/30 dark:hover:bg-white/10'
+              )}
+              title={showImageUpload ? 'Bildupload schließen' : 'Bild hochladen'}
+            >
+              {showImageUpload && images.length === 0 ? (
+                <X className="w-5 h-5" />
+              ) : (
+                <div className="relative">
+                  <ImageIcon className="w-5 h-5" />
+                  {images.length > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-accent text-white text-xs rounded-full flex items-center justify-center">
+                      {images.length}
+                    </span>
+                  )}
+                </div>
+              )}
+            </button>
+
+            {/* Send Button */}
+            <button
+              type="submit"
+              disabled={(!message.trim() && images.length === 0) || isProcessing}
+              className={cn(
+                'p-2 rounded-lg',
+                'text-text-secondary hover:text-accent hover:bg-white/30 dark:hover:bg-white/10',
+                'transition-all duration-200',
+                'disabled:opacity-50 disabled:cursor-not-allowed',
+                images.length > 0 && 'text-accent'
+              )}
+            >
+              <Send className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </form>
 
-      {lastResponse && (
+      {lastResponse && !extractedData && (
         <div className="mt-3 pt-3 border-t border-white/20 dark:border-white/10">
           <div className="flex items-start justify-between gap-2">
             <p
@@ -133,7 +231,7 @@ export default function AgentInput({ onSend, isProcessing, lastResponse }) {
         </div>
       )}
 
-      {!lastResponse && !isProcessing && (
+      {!lastResponse && !isProcessing && !showImageUpload && !extractedData && (
         <div className="mt-3 flex flex-wrap gap-2">
           {examples.map((example, i) => (
             <button

@@ -22,6 +22,7 @@ const areasRoutes = require('./routes/areas');
 const resourcesRoutes = require('./routes/resources');
 const archiveRoutes = require('./routes/archive');
 const customToolsRoutes = require('./routes/customTools');
+const visionRoutes = require('./routes/vision');
 
 const app = express();
 const server = http.createServer(app);
@@ -126,6 +127,7 @@ app.use('/api/areas', areasRoutes);
 app.use('/api/resources', resourcesRoutes);
 app.use('/api/archive', archiveRoutes);
 app.use('/api/custom-tools', customToolsRoutes);
+app.use('/api/vision', visionRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({

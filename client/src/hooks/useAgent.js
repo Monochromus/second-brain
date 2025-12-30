@@ -10,7 +10,6 @@ export function useAgent(refreshCallbacks = {}) {
 
   const { registerRefreshListener } = context;
 
-  // Register refresh callbacks
   useEffect(() => {
     const unsubscribers = [];
 
@@ -37,9 +36,16 @@ export function useAgent(refreshCallbacks = {}) {
 
   return {
     sendMessage: context.sendMessage,
+    sendWithImages: context.sendWithImages,
     isProcessing: context.isProcessing,
     lastResponse: context.lastResponse,
     history: context.history,
-    clearHistory: context.clearHistory
+    clearHistory: context.clearHistory,
+    // Vision/Extraction
+    visionResponse: context.visionResponse,
+    extractedData: context.extractedData,
+    confirmExtraction: context.confirmExtraction,
+    cancelExtraction: context.cancelExtraction,
+    isConfirming: context.isConfirming
   };
 }

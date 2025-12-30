@@ -73,11 +73,52 @@ async function request(endpoint, options = {}) {
   }
 }
 
+// FormData Upload (für Bilder)
+async function uploadFormData(endpoint, formData) {
+  const url = `${API_BASE}${endpoint}`;
+  const token = getToken();
+
+  const config = {
+    method: 'POST',
+    body: formData,
+    credentials: 'include',
+    headers: {}
+  };
+
+  // Authorization Header hinzufügen (KEIN Content-Type - Browser setzt es automatisch mit Boundary)
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  try {
+    const response = await fetch(url, config);
+    const data = await response.json();
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        clearToken();
+      }
+      throw new ApiError(data.error || 'Ein Fehler ist aufgetreten', response.status);
+    }
+
+    return data;
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+      throw new ApiError('Keine Verbindung zum Server', 0);
+    }
+    throw new ApiError(error.message || 'Ein unbekannter Fehler ist aufgetreten', 500);
+  }
+}
+
 export const api = {
   get: (endpoint) => request(endpoint, { method: 'GET' }),
   post: (endpoint, body) => request(endpoint, { method: 'POST', body }),
   put: (endpoint, body) => request(endpoint, { method: 'PUT', body }),
   delete: (endpoint) => request(endpoint, { method: 'DELETE' }),
+  upload: uploadFormData,
 };
 
 export { ApiError };
