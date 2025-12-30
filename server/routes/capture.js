@@ -60,10 +60,6 @@ function validateCaptureBody(body) {
 
 // Process and save image
 async function processImage(base64Data, userId) {
-  console.log(`[Capture] Processing image for user ${userId}`);
-  console.log(`[Capture] Image data length: ${base64Data?.length || 0} chars`);
-  console.log(`[Capture] Image data starts with: ${base64Data?.substring(0, 50)}...`);
-
   // Strip data URL prefix if present
   let imageData = base64Data;
   let mimeType = 'image/jpeg';
@@ -72,9 +68,6 @@ async function processImage(base64Data, userId) {
   if (dataUrlMatch) {
     mimeType = dataUrlMatch[1];
     imageData = dataUrlMatch[2];
-    console.log(`[Capture] Stripped data URL prefix, mimeType: ${mimeType}`);
-  } else {
-    console.log(`[Capture] No data URL prefix found, using raw base64`);
   }
 
   // Validate MIME type
@@ -85,7 +78,6 @@ async function processImage(base64Data, userId) {
 
   // Decode base64
   const buffer = Buffer.from(imageData, 'base64');
-  console.log(`[Capture] Decoded buffer size: ${buffer.length} bytes`);
 
   if (buffer.length > MAX_IMAGE_SIZE) {
     throw new Error('Bild ist zu gross (max 10MB)');
@@ -104,8 +96,6 @@ async function processImage(base64Data, userId) {
   const filepath = path.join(uploadDir, filename);
 
   // Process with sharp: resize and convert to JPEG
-  console.log(`[Capture] Saving image to: ${filepath}`);
-
   await sharp(buffer)
     .resize(MAX_DIMENSION, MAX_DIMENSION, {
       fit: 'inside',
@@ -114,11 +104,8 @@ async function processImage(base64Data, userId) {
     .jpeg({ quality: JPEG_QUALITY })
     .toFile(filepath);
 
-  const relativePath = `/uploads/${userId}/captures/${filename}`;
-  console.log(`[Capture] Image saved successfully: ${relativePath}`);
-
   // Return relative path for database storage
-  return relativePath;
+  return `/uploads/${userId}/captures/${filename}`;
 }
 
 // CORS preflight for capture endpoint (allow all origins for shortcuts)
