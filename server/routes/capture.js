@@ -60,6 +60,8 @@ function validateCaptureBody(body) {
 
 // Process and save image
 async function processImage(base64Data, userId) {
+  console.log(`[Image] Processing image for user ${userId}, input length: ${base64Data?.length || 0}`);
+
   // Strip data URL prefix if present
   let imageData = base64Data;
   let mimeType = 'image/jpeg';
@@ -68,7 +70,14 @@ async function processImage(base64Data, userId) {
   if (dataUrlMatch) {
     mimeType = dataUrlMatch[1];
     imageData = dataUrlMatch[2];
+    console.log(`[Image] Detected data URL with MIME type: ${mimeType}`);
+  } else {
+    console.log(`[Image] No data URL prefix, using raw Base64`);
   }
+
+  // Clean up Base64 - remove any whitespace/newlines that iOS might add
+  imageData = imageData.replace(/[\s\r\n]+/g, '');
+  console.log(`[Image] Cleaned Base64 length: ${imageData.length}`);
 
   // Validate MIME type
   if (!ALLOWED_MIME_TYPES[mimeType] && !dataUrlMatch) {
@@ -77,16 +86,35 @@ async function processImage(base64Data, userId) {
   }
 
   // Decode base64
-  const buffer = Buffer.from(imageData, 'base64');
+  let buffer;
+  try {
+    buffer = Buffer.from(imageData, 'base64');
+    console.log(`[Image] Decoded buffer size: ${buffer.length} bytes`);
+  } catch (decodeErr) {
+    console.error(`[Image] Base64 decode error:`, decodeErr);
+    throw new Error(`Base64-Dekodierung fehlgeschlagen: ${decodeErr.message}`);
+  }
+
+  if (buffer.length === 0) {
+    throw new Error('Bild-Daten sind leer nach Base64-Dekodierung');
+  }
 
   if (buffer.length > MAX_IMAGE_SIZE) {
-    throw new Error('Bild ist zu gross (max 10MB)');
+    throw new Error(`Bild ist zu gross (${(buffer.length / 1024 / 1024).toFixed(1)}MB, max 10MB)`);
   }
 
   // Create upload directory
   const uploadDir = path.join(__dirname, '../../uploads', userId.toString(), 'captures');
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
+  console.log(`[Image] Upload directory: ${uploadDir}`);
+
+  try {
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+      console.log(`[Image] Created upload directory`);
+    }
+  } catch (dirErr) {
+    console.error(`[Image] Directory creation error:`, dirErr);
+    throw new Error(`Verzeichnis konnte nicht erstellt werden: ${dirErr.message}`);
   }
 
   // Generate filename
@@ -94,15 +122,22 @@ async function processImage(base64Data, userId) {
   const fileId = nanoid(8);
   const filename = `${timestamp}_${fileId}.jpg`;
   const filepath = path.join(uploadDir, filename);
+  console.log(`[Image] Target filepath: ${filepath}`);
 
   // Process with sharp: resize and convert to JPEG
-  await sharp(buffer)
-    .resize(MAX_DIMENSION, MAX_DIMENSION, {
-      fit: 'inside',
-      withoutEnlargement: true
-    })
-    .jpeg({ quality: JPEG_QUALITY })
-    .toFile(filepath);
+  try {
+    await sharp(buffer)
+      .resize(MAX_DIMENSION, MAX_DIMENSION, {
+        fit: 'inside',
+        withoutEnlargement: true
+      })
+      .jpeg({ quality: JPEG_QUALITY })
+      .toFile(filepath);
+    console.log(`[Image] Sharp processing complete, saved to ${filepath}`);
+  } catch (sharpErr) {
+    console.error(`[Image] Sharp processing error:`, sharpErr);
+    throw new Error(`Bildverarbeitung fehlgeschlagen: ${sharpErr.message}`);
+  }
 
   // Return relative path for database storage
   return `/uploads/${userId}/captures/${filename}`;
@@ -127,7 +162,7 @@ router.post('/', (req, res, next) => {
   const userId = req.userId;
   const { text, image, timestamp, source = 'shortcut' } = req.body;
 
-  console.log(`[Capture Route] Authenticated user: ${userId}, text length: ${text?.length || 0}`);
+  console.log(`[Capture Route] Authenticated user: ${userId}, text length: ${text?.length || 0}, has image: ${!!image}, image length: ${image?.length || 0}`);
 
   // Validate request
   const errors = validateCaptureBody(req.body);
