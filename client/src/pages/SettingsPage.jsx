@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { User, Key, Calendar, Palette, RefreshCw, Bot, Eye, EyeOff, Check } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { User, Key, Calendar, Palette, RefreshCw, Bot, Eye, EyeOff, Check, Smartphone, Copy, Trash2, AlertTriangle, ExternalLink } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
 import { useCalendarConnections } from '../hooks/useCalendar';
@@ -54,6 +54,77 @@ export default function SettingsPage() {
     password: false,
     calendar: false
   });
+
+  // Personal API Key state
+  const [personalApiKey, setPersonalApiKey] = useState({
+    hasKey: false,
+    createdAt: null,
+    loading: true
+  });
+  const [generatedKey, setGeneratedKey] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [generatingKey, setGeneratingKey] = useState(false);
+
+  // Load personal API key status on mount
+  useEffect(() => {
+    loadApiKeyStatus();
+  }, []);
+
+  const loadApiKeyStatus = async () => {
+    try {
+      const response = await api.get('/settings/api-key/status');
+      setPersonalApiKey({
+        hasKey: response.hasApiKey,
+        createdAt: response.createdAt,
+        loading: false
+      });
+    } catch {
+      setPersonalApiKey(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  const handleGenerateApiKey = async () => {
+    setGeneratingKey(true);
+    try {
+      const response = await api.post('/settings/api-key/generate');
+      setGeneratedKey(response.apiKey);
+      setPersonalApiKey({
+        hasKey: true,
+        createdAt: response.createdAt,
+        loading: false
+      });
+      toast.success('API Key generiert!');
+    } catch (err) {
+      toast.error('Fehler beim Generieren des Keys');
+    } finally {
+      setGeneratingKey(false);
+    }
+  };
+
+  const handleDeleteApiKey = async () => {
+    try {
+      await api.delete('/settings/api-key');
+      setPersonalApiKey({
+        hasKey: false,
+        createdAt: null,
+        loading: false
+      });
+      setGeneratedKey(null);
+      setShowDeleteConfirm(false);
+      toast.success('API Key widerrufen');
+    } catch (err) {
+      toast.error('Fehler beim Widerrufen');
+    }
+  };
+
+  const copyToClipboard = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('In Zwischenablage kopiert!');
+    } catch {
+      toast.error('Kopieren fehlgeschlagen');
+    }
+  };
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
@@ -262,6 +333,181 @@ export default function SettingsPage() {
               {saving.apiKey ? 'Speichere...' : 'Speichern'}
             </button>
           </form>
+        </div>
+
+        {/* Kurzbefehle & Externe Apps Section */}
+        <div className="card p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
+              <Smartphone className="w-5 h-5 text-accent" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-text-primary">Kurzbefehle & Externe Apps</h2>
+              <p className="text-sm text-text-secondary">Verbinde iOS-Kurzbefehle mit deinem Second Brain</p>
+            </div>
+          </div>
+
+          {personalApiKey.loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-6 w-6 border-2 border-accent border-t-transparent" />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Generated Key Display (only shown once after generation) */}
+              {generatedKey && (
+                <div className="p-4 bg-success/10 border border-success/30 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <Check className="w-5 h-5 text-success mt-0.5" />
+                    <div className="flex-1">
+                      <p className="font-medium text-text-primary mb-2">
+                        Dein neuer API Key (nur einmalig sichtbar!)
+                      </p>
+                      <div className="flex items-center gap-2 p-2 bg-surface-secondary rounded font-mono text-sm break-all">
+                        <code className="flex-1">{generatedKey}</code>
+                        <button
+                          onClick={() => copyToClipboard(generatedKey)}
+                          className="p-1.5 hover:bg-surface-primary rounded transition-colors"
+                          title="Kopieren"
+                        >
+                          <Copy className="w-4 h-4 text-accent" />
+                        </button>
+                      </div>
+                      <p className="text-xs text-text-secondary mt-2">
+                        Speichere diesen Key sicher! Er wird nicht erneut angezeigt.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Key Status */}
+              {personalApiKey.hasKey ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-3 bg-surface-secondary rounded-lg">
+                    <div>
+                      <p className="font-medium text-text-primary">API Key aktiv</p>
+                      <p className="text-xs text-text-secondary">
+                        Erstellt am {new Date(personalApiKey.createdAt).toLocaleDateString('de-DE', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleGenerateApiKey}
+                        disabled={generatingKey}
+                        className="btn btn-secondary text-sm"
+                      >
+                        {generatingKey ? 'Generiere...' : 'Neu generieren'}
+                      </button>
+                      <button
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="p-2 text-error hover:bg-error/10 rounded-lg transition-colors"
+                        title="Key widerrufen"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Delete Confirmation Dialog */}
+                  {showDeleteConfirm && (
+                    <div className="p-4 bg-error/10 border border-error/30 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle className="w-5 h-5 text-error mt-0.5" />
+                        <div className="flex-1">
+                          <p className="font-medium text-text-primary mb-2">
+                            API Key wirklich widerrufen?
+                          </p>
+                          <p className="text-sm text-text-secondary mb-3">
+                            Deine Kurzbefehle werden nicht mehr funktionieren.
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={handleDeleteApiKey}
+                              className="btn bg-error text-white hover:bg-error/90"
+                            >
+                              Widerrufen
+                            </button>
+                            <button
+                              onClick={() => setShowDeleteConfirm(false)}
+                              className="btn btn-secondary"
+                            >
+                              Abbrechen
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-text-secondary">
+                    Generiere einen API Key, um Notizen, Aufgaben und Bilder direkt von
+                    iOS-Kurzbefehlen, Siri oder dem Share-Sheet zu erfassen.
+                  </p>
+                  <button
+                    onClick={handleGenerateApiKey}
+                    disabled={generatingKey}
+                    className="btn btn-primary"
+                  >
+                    {generatingKey ? 'Generiere...' : 'API Key generieren'}
+                  </button>
+                </div>
+              )}
+
+              {/* Kurzbefehl Setup Instructions */}
+              <div className="mt-6 pt-4 border-t border-border">
+                <h3 className="font-medium text-text-primary mb-3">Kurzbefehl einrichten</h3>
+                <div className="space-y-3 text-sm text-text-secondary">
+                  <div className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent flex items-center justify-center text-xs font-medium">1</span>
+                    <p>Generiere oben einen API Key und kopiere ihn</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent flex items-center justify-center text-xs font-medium">2</span>
+                    <p>Erstelle einen neuen Kurzbefehl in der Kurzbefehle-App</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent flex items-center justify-center text-xs font-medium">3</span>
+                    <div>
+                      <p className="mb-1">Sende einen POST-Request an:</p>
+                      <code className="block p-2 bg-surface-secondary rounded text-xs break-all">
+                        {window.location.origin}/api/capture
+                      </code>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent flex items-center justify-center text-xs font-medium">4</span>
+                    <div>
+                      <p className="mb-1">Setze den Header:</p>
+                      <code className="block p-2 bg-surface-secondary rounded text-xs">
+                        Authorization: Bearer DEIN_API_KEY
+                      </code>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent flex items-center justify-center text-xs font-medium">5</span>
+                    <div>
+                      <p className="mb-1">JSON-Body Beispiel:</p>
+                      <pre className="block p-2 bg-surface-secondary rounded text-xs overflow-x-auto">
+{`{
+  "text": "Deine Notiz",
+  "image": "base64...",
+  "source": "shortcut"
+}`}
+                      </pre>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="card p-6">

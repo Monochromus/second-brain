@@ -23,6 +23,8 @@ const resourcesRoutes = require('./routes/resources');
 const archiveRoutes = require('./routes/archive');
 const customToolsRoutes = require('./routes/customTools');
 const visionRoutes = require('./routes/vision');
+const settingsRoutes = require('./routes/settings');
+const captureRoutes = require('./routes/capture');
 
 const app = express();
 const server = http.createServer(app);
@@ -102,6 +104,10 @@ if (process.env.NODE_ENV !== 'production') {
 
 app.use(express.json({ limit: '10mb' }));
 
+// Serve uploaded files
+const uploadsPath = path.join(__dirname, '../uploads');
+app.use('/uploads', express.static(uploadsPath));
+
 app.set('trust proxy', 1);
 
 app.use(session({
@@ -128,6 +134,8 @@ app.use('/api/resources', resourcesRoutes);
 app.use('/api/archive', archiveRoutes);
 app.use('/api/custom-tools', customToolsRoutes);
 app.use('/api/vision', visionRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/capture', captureRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({
