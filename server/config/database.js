@@ -233,6 +233,45 @@ function runMigrations() {
       // Table might not exist yet, that's ok
     }
   }
+
+  // Check and add personal_api_key_hash to users
+  try {
+    db.prepare('SELECT personal_api_key_hash FROM users LIMIT 1').get();
+  } catch {
+    db.exec('ALTER TABLE users ADD COLUMN personal_api_key_hash TEXT');
+    db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_api_key_hash ON users(personal_api_key_hash) WHERE personal_api_key_hash IS NOT NULL');
+    console.log('Migration: Added personal_api_key_hash to users');
+  }
+
+  // Check and add personal_api_key_created_at to users
+  try {
+    db.prepare('SELECT personal_api_key_created_at FROM users LIMIT 1').get();
+  } catch {
+    db.exec('ALTER TABLE users ADD COLUMN personal_api_key_created_at DATETIME');
+    console.log('Migration: Added personal_api_key_created_at to users');
+  }
+
+  // Create captures table if not exists
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS captures (
+      id TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      text TEXT NOT NULL,
+      image_path TEXT,
+      source TEXT DEFAULT 'shortcut' CHECK(source IN ('shortcut', 'web', 'share')),
+      processed INTEGER DEFAULT 0,
+      ai_result TEXT,
+      created_note_id INTEGER REFERENCES notes(id) ON DELETE SET NULL,
+      created_todo_id INTEGER REFERENCES todos(id) ON DELETE SET NULL,
+      created_event_id INTEGER REFERENCES calendar_events(id) ON DELETE SET NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_captures_user ON captures(user_id);
+    CREATE INDEX IF NOT EXISTS idx_captures_processed ON captures(processed);
+  `);
+  console.log('Migration: Ensured captures table exists');
 }
 
 function createTriggers() {
@@ -285,6 +324,13 @@ function createTriggers() {
     AFTER UPDATE ON custom_tools
     BEGIN
       UPDATE custom_tools SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+    END;
+
+    -- Trigger to update updated_at on captures
+    CREATE TRIGGER IF NOT EXISTS update_captures_timestamp
+    AFTER UPDATE ON captures
+    BEGIN
+      UPDATE captures SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
     END;
   `);
 }
