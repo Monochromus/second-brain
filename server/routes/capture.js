@@ -121,10 +121,13 @@ router.options('/', (req, res) => {
 router.post('/', (req, res, next) => {
   // Allow all origins for this endpoint (for iOS Shortcuts)
   res.set('Access-Control-Allow-Origin', '*');
+  console.log('[Capture Route] POST /api/capture received');
   next();
 }, requireApiKeyAuth, asyncHandler(async (req, res) => {
   const userId = req.userId;
   const { text, image, timestamp, source = 'shortcut' } = req.body;
+
+  console.log(`[Capture Route] Authenticated user: ${userId}, text length: ${text?.length || 0}`);
 
   // Validate request
   const errors = validateCaptureBody(req.body);
@@ -149,15 +152,21 @@ router.post('/', (req, res, next) => {
   // Store capture in database
   const captureTimestamp = timestamp ? new Date(timestamp).toISOString() : new Date().toISOString();
 
+  console.log(`[Capture Route] Inserting capture ${captureId} into database...`);
+
   db.prepare(`
     INSERT INTO captures (id, user_id, text, image_path, source, created_at)
     VALUES (?, ?, ?, ?, ?, ?)
   `).run(captureId, userId, text, imagePath, source, captureTimestamp);
 
+  console.log(`[Capture Route] Capture ${captureId} saved, starting AI processing...`);
+
   // Start async AI processing
   processCaptureWithAI(captureId, userId).catch(err => {
-    console.error(`AI processing failed for capture ${captureId}:`, err);
+    console.error(`[Capture Route] AI processing failed for capture ${captureId}:`, err);
   });
+
+  console.log(`[Capture Route] Returning success response`);
 
   // Return success immediately
   res.status(201).json({
