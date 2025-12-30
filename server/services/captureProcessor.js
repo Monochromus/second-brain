@@ -88,15 +88,21 @@ Wenn keine Elemente erkannt werden, gib leere Arrays zurück.
 Heute ist ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.`;
 
 async function processCaptureWithAI(captureId, userId) {
+  console.log(`[Capture] Processing capture ${captureId} for user ${userId}`);
+
   const capture = db.prepare('SELECT * FROM captures WHERE id = ?').get(captureId);
 
   if (!capture) {
+    console.log(`[Capture] Capture ${captureId} not found`);
     throw new Error('Capture nicht gefunden');
   }
+
+  console.log(`[Capture] Capture text: "${capture.text.substring(0, 100)}..."`);
 
   const openai = createOpenAIClient(userId);
 
   if (!openai) {
+    console.log(`[Capture] No OpenAI API key available for user ${userId} - creating basic note only`);
     // No API key available - mark as processed without AI
     db.prepare(`
       UPDATE captures
@@ -109,6 +115,8 @@ async function processCaptureWithAI(captureId, userId) {
     await createBasicNoteFromCapture(capture, userId);
     return;
   }
+
+  console.log(`[Capture] OpenAI client created, starting AI processing...`);
 
   try {
     const model = getModel(userId);
@@ -149,6 +157,7 @@ async function processCaptureWithAI(captureId, userId) {
     });
 
     const aiResult = JSON.parse(response.choices[0].message.content);
+    console.log(`[Capture] AI result:`, JSON.stringify(aiResult, null, 2));
 
     // Store AI result
     db.prepare(`
@@ -159,10 +168,12 @@ async function processCaptureWithAI(captureId, userId) {
     `).run(JSON.stringify(aiResult), captureId);
 
     // Create items based on AI analysis
+    console.log(`[Capture] Creating items from AI result...`);
     await createItemsFromAIResult(capture, aiResult, userId);
+    console.log(`[Capture] Processing complete for ${captureId}`);
 
   } catch (error) {
-    console.error('AI processing error:', error);
+    console.error('[Capture] AI processing error:', error);
 
     // Store error but still create basic note
     db.prepare(`
