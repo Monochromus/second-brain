@@ -3,6 +3,7 @@ const { nanoid } = require('nanoid');
 const path = require('path');
 const fs = require('fs');
 const sharp = require('sharp');
+const heicConvert = require('heic-convert');
 const db = require('../config/database');
 const { requireApiKeyAuth } = require('../middleware/apiKeyAuth');
 const { asyncHandler } = require('../middleware/errorHandler');
@@ -58,6 +59,34 @@ function validateCaptureBody(body) {
   return errors;
 }
 
+// Detect if buffer is HEIC format by checking magic bytes
+function isHeicFormat(buffer) {
+  if (buffer.length < 12) return false;
+  // HEIC files have 'ftyp' at offset 4 and 'heic', 'heix', 'hevc', 'mif1' at offset 8
+  const ftypMarker = buffer.slice(4, 8).toString('ascii');
+  if (ftypMarker !== 'ftyp') return false;
+
+  const brand = buffer.slice(8, 12).toString('ascii');
+  return ['heic', 'heix', 'hevc', 'mif1'].includes(brand);
+}
+
+// Convert HEIC to JPEG buffer
+async function convertHeicToJpeg(buffer) {
+  console.log(`[Image] Converting HEIC to JPEG...`);
+  try {
+    const outputBuffer = await heicConvert({
+      buffer: buffer,
+      format: 'JPEG',
+      quality: 0.9
+    });
+    console.log(`[Image] HEIC conversion complete, output size: ${outputBuffer.length} bytes`);
+    return Buffer.from(outputBuffer);
+  } catch (err) {
+    console.error(`[Image] HEIC conversion error:`, err);
+    throw new Error(`HEIC-Konvertierung fehlgeschlagen: ${err.message}`);
+  }
+}
+
 // Process and save image
 async function processImage(base64Data, userId) {
   console.log(`[Image] Processing image for user ${userId}, input length: ${base64Data?.length || 0}`);
@@ -101,6 +130,12 @@ async function processImage(base64Data, userId) {
 
   if (buffer.length > MAX_IMAGE_SIZE) {
     throw new Error(`Bild ist zu gross (${(buffer.length / 1024 / 1024).toFixed(1)}MB, max 10MB)`);
+  }
+
+  // Check for HEIC format and convert if necessary
+  if (isHeicFormat(buffer) || mimeType === 'image/heic' || mimeType === 'image/heif') {
+    console.log(`[Image] Detected HEIC/HEIF format, converting to JPEG...`);
+    buffer = await convertHeicToJpeg(buffer);
   }
 
   // Create upload directory
