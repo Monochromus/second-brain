@@ -1,92 +1,14 @@
-const OpenAI = require('openai');
 const fs = require('fs');
 const path = require('path');
 const db = require('../config/database');
+const { processAgentRequest, executeToolCall } = require('./openai');
+const { processImagesWithVision } = require('./vision');
 
-// Get user's API key from settings (reused from openai.js)
-function getUserApiKey(userId) {
-  const user = db.prepare('SELECT settings FROM users WHERE id = ?').get(userId);
-  if (user && user.settings) {
-    try {
-      const settings = JSON.parse(user.settings);
-      return settings.openaiApiKey || null;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
-
-// Get user's preferred model (reused from openai.js)
-function getUserModel(userId) {
-  const user = db.prepare('SELECT settings FROM users WHERE id = ?').get(userId);
-  if (user && user.settings) {
-    try {
-      const settings = JSON.parse(user.settings);
-      return settings.openaiModel || null;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
-
-// Create OpenAI client with user's API key or fallback to environment
-function createOpenAIClient(userId) {
-  const userApiKey = getUserApiKey(userId);
-  const apiKey = userApiKey || process.env.OPENAI_API_KEY;
-
-  if (!apiKey || apiKey === 'sk-your-openai-api-key-here') {
-    return null;
-  }
-
-  return new OpenAI({ apiKey });
-}
-
-// Get the model to use
-function getModel(userId) {
-  const userApiKey = getUserApiKey(userId);
-  const userModel = userApiKey ? getUserModel(userId) : null;
-  return userModel || process.env.OPENAI_MODEL || 'gpt-4o-mini';
-}
-
-// System prompt for capture analysis
-const CAPTURE_ANALYSIS_PROMPT = `Du bist ein intelligenter Assistent, der Notizen und Captures analysiert.
-Deine Aufgabe ist es, den Inhalt zu verstehen und zu kategorisieren.
-
-Analysiere den folgenden Text (und optional ein Bild) und extrahiere:
-
-1. **Kategorie** (PARA-Methode):
-   - "project": Ein konkretes Projekt mit Deadline/Ziel
-   - "area": Ein dauerhafter Verantwortungsbereich (Gesundheit, Familie, etc.)
-   - "resource": Referenzmaterial, Wissen, Links
-   - "archive": Erledigtes oder nicht mehr relevantes
-
-2. **Erkannte Elemente**:
-   - todos: Liste von Aufgaben die erledigt werden müssen
-   - events: Erkannte Termine mit Datum/Uhrzeit
-   - contacts: Erkannte Kontaktdaten (Name, Telefon, Email)
-   - links: Erkannte URLs
-
-3. **Vorgeschlagene Tags**: Relevante Schlagworte
-
-4. **Zusammenfassung**: Kurze Zusammenfassung des Inhalts (max 100 Zeichen)
-
-Antworte IMMER im folgenden JSON-Format:
-{
-  "category": "project|area|resource|archive",
-  "summary": "Kurze Zusammenfassung",
-  "tags": ["tag1", "tag2"],
-  "todos": [{"title": "Aufgabe", "priority": 3, "due_date": "YYYY-MM-DD oder null"}],
-  "events": [{"title": "Termin", "start_time": "ISO-8601", "end_time": "ISO-8601", "location": "Ort oder null"}],
-  "contacts": [{"name": "Name", "phone": "Nummer", "email": "Email"}],
-  "links": ["https://..."],
-  "suggestedTitle": "Vorgeschlagener Titel für die Notiz"
-}
-
-Wenn keine Elemente erkannt werden, gib leere Arrays zurück.
-Heute ist ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.`;
-
+/**
+ * Process a capture from iOS Shortcut
+ * - Without image: Send text to AI Agent (same as chat input)
+ * - With image: Use Vision API and auto-create extracted items
+ */
 async function processCaptureWithAI(captureId, userId) {
   console.log(`[Capture] Processing capture ${captureId} for user ${userId}`);
 
@@ -97,85 +19,44 @@ async function processCaptureWithAI(captureId, userId) {
     throw new Error('Capture nicht gefunden');
   }
 
-  console.log(`[Capture] Capture text: "${capture.text.substring(0, 100)}..."`);
-
-  const openai = createOpenAIClient(userId);
-
-  if (!openai) {
-    console.log(`[Capture] No OpenAI API key available for user ${userId} - creating basic note only`);
-    // No API key available - mark as processed without AI
-    db.prepare(`
-      UPDATE captures
-      SET processed = 1,
-          ai_result = ?
-      WHERE id = ?
-    `).run(JSON.stringify({ error: 'Kein OpenAI API Key konfiguriert' }), captureId);
-
-    // Still create a basic note from the capture
-    await createBasicNoteFromCapture(capture, userId);
-    return;
-  }
-
-  console.log(`[Capture] OpenAI client created, starting AI processing...`);
+  console.log(`[Capture] Capture text: "${capture.text.substring(0, 100)}${capture.text.length > 100 ? '...' : ''}"`);
+  console.log(`[Capture] Has image: ${!!capture.image_path}`);
 
   try {
-    const model = getModel(userId);
-    const messages = [
-      { role: 'system', content: CAPTURE_ANALYSIS_PROMPT },
-    ];
+    let result;
 
-    // Build user message
-    const userContent = [];
-    userContent.push({ type: 'text', text: capture.text });
-
-    // Add image if present
     if (capture.image_path) {
-      const imagePath = path.join(__dirname, '../..', capture.image_path);
-      if (fs.existsSync(imagePath)) {
-        const imageBuffer = fs.readFileSync(imagePath);
-        const base64Image = imageBuffer.toString('base64');
-        userContent.push({
-          type: 'image_url',
-          image_url: {
-            url: `data:image/jpeg;base64,${base64Image}`,
-            detail: 'auto'
-          }
-        });
-      }
+      // With image: Use Vision API
+      result = await processWithVision(capture, userId);
+    } else {
+      // Without image: Use Agent (same as chat)
+      result = await processWithAgent(capture, userId);
     }
 
-    messages.push({ role: 'user', content: userContent });
-
-    // Use vision model if image is present
-    const useVisionModel = capture.image_path ? 'gpt-4o' : model;
-
-    const response = await openai.chat.completions.create({
-      model: useVisionModel,
-      messages,
-      max_tokens: 1500,
-      response_format: { type: 'json_object' }
-    });
-
-    const aiResult = JSON.parse(response.choices[0].message.content);
-    console.log(`[Capture] AI result:`, JSON.stringify(aiResult, null, 2));
-
-    // Store AI result
+    // Update capture with result
     db.prepare(`
       UPDATE captures
       SET processed = 1,
           ai_result = ?
       WHERE id = ?
-    `).run(JSON.stringify(aiResult), captureId);
+    `).run(JSON.stringify(result), captureId);
 
-    // Create items based on AI analysis
-    console.log(`[Capture] Creating items from AI result...`);
-    await createItemsFromAIResult(capture, aiResult, userId);
     console.log(`[Capture] Processing complete for ${captureId}`);
 
-  } catch (error) {
-    console.error('[Capture] AI processing error:', error);
+    // Emit WebSocket event if available
+    if (global.io) {
+      global.io.to(`user:${userId}`).emit('capture:processed', {
+        captureId: capture.id,
+        result
+      });
+    }
 
-    // Store error but still create basic note
+    return result;
+
+  } catch (error) {
+    console.error('[Capture] Processing error:', error);
+
+    // Store error
     db.prepare(`
       UPDATE captures
       SET processed = 1,
@@ -183,103 +64,210 @@ async function processCaptureWithAI(captureId, userId) {
       WHERE id = ?
     `).run(JSON.stringify({ error: error.message }), captureId);
 
-    await createBasicNoteFromCapture(capture, userId);
+    throw error;
   }
 }
 
-async function createBasicNoteFromCapture(capture, userId) {
-  const noteResult = db.prepare(`
-    INSERT INTO notes (user_id, title, content, tags, position)
-    VALUES (?, ?, ?, '["capture"]', (SELECT COALESCE(MAX(position), 0) + 1 FROM notes WHERE user_id = ?))
-  `).run(
-    userId,
-    `Capture ${new Date(capture.created_at).toLocaleDateString('de-DE')}`,
-    capture.text,
-    userId
-  );
+/**
+ * Process text-only capture using the AI Agent
+ * This is the same as sending a message in the chat
+ */
+async function processWithAgent(capture, userId) {
+  console.log(`[Capture] Processing with Agent...`);
 
-  db.prepare(`
-    UPDATE captures SET created_note_id = ? WHERE id = ?
-  `).run(noteResult.lastInsertRowid, capture.id);
+  // Call the same function as the chat endpoint
+  const agentResult = await processAgentRequest(capture.text, userId, []);
+
+  console.log(`[Capture] Agent response: "${agentResult.response?.substring(0, 100)}..."`);
+  console.log(`[Capture] Agent actions: ${agentResult.actions?.length || 0}`);
+
+  return {
+    type: 'agent',
+    response: agentResult.response,
+    actions: agentResult.actions || []
+  };
 }
 
-async function createItemsFromAIResult(capture, aiResult, userId) {
-  let createdNoteId = null;
-  let createdTodoId = null;
-  let createdEventId = null;
+/**
+ * Process capture with image using Vision API
+ * Automatically creates extracted items (no manual confirmation needed)
+ */
+async function processWithVision(capture, userId) {
+  console.log(`[Capture] Processing with Vision API...`);
 
-  // Always create a note with the capture content
-  const noteTitle = aiResult.suggestedTitle || `Capture ${new Date(capture.created_at).toLocaleDateString('de-DE')}`;
-  const tags = JSON.stringify(aiResult.tags || ['capture']);
+  // Read image from disk
+  const imagePath = path.join(__dirname, '../..', capture.image_path);
 
-  const noteResult = db.prepare(`
-    INSERT INTO notes (user_id, title, content, tags, position)
-    VALUES (?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM notes WHERE user_id = ?))
-  `).run(userId, noteTitle, capture.text, tags, userId);
+  if (!fs.existsSync(imagePath)) {
+    throw new Error('Bild nicht gefunden');
+  }
 
-  createdNoteId = noteResult.lastInsertRowid;
+  const imageBuffer = fs.readFileSync(imagePath);
+  const images = [{
+    buffer: imageBuffer,
+    mimetype: 'image/jpeg',
+    originalname: path.basename(imagePath)
+  }];
 
-  // Create todos if recognized
-  if (aiResult.todos && aiResult.todos.length > 0) {
-    for (const todo of aiResult.todos) {
-      const todoResult = db.prepare(`
-        INSERT INTO todos (user_id, title, priority, due_date, position)
-        VALUES (?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM todos WHERE user_id = ?))
-      `).run(
-        userId,
-        todo.title,
-        todo.priority || 3,
-        todo.due_date || null,
-        userId
-      );
+  // Call Vision API with the capture text as query
+  const visionResult = await processImagesWithVision(userId, images, capture.text);
 
-      if (!createdTodoId) {
-        createdTodoId = todoResult.lastInsertRowid;
+  if (!visionResult.success) {
+    throw new Error(visionResult.error);
+  }
+
+  console.log(`[Capture] Vision response: "${visionResult.response?.substring(0, 100)}..."`);
+
+  // Auto-create all extracted items
+  const created = await autoCreateItems(visionResult.extractions, userId);
+
+  return {
+    type: 'vision',
+    response: visionResult.response,
+    extractions: visionResult.extractions,
+    created
+  };
+}
+
+/**
+ * Automatically create items from Vision API extractions
+ * (Same logic as /vision/confirm but without manual selection)
+ */
+async function autoCreateItems(extractions, userId) {
+  const created = {
+    appointments: [],
+    todos: [],
+    notes: [],
+    contacts: []
+  };
+  const errors = [];
+
+  // Create appointments
+  for (const apt of extractions.appointments || []) {
+    try {
+      const eventData = {
+        title: apt.title,
+        start_time: buildDateTime(apt.date, apt.startTime),
+        end_time: buildDateTime(apt.date, apt.endTime || apt.startTime, 1),
+        description: apt.description || '',
+        location: apt.location || '',
+        is_all_day: !apt.startTime
+      };
+
+      const result = await executeToolCall('create_calendar_event', eventData, userId);
+      if (result.success) {
+        created.appointments.push(result.event);
+        console.log(`[Capture] Created appointment: ${apt.title}`);
+      } else {
+        errors.push(`Termin "${apt.title}": ${result.error}`);
       }
+    } catch (err) {
+      errors.push(`Termin "${apt.title}": ${err.message}`);
     }
   }
 
-  // Create calendar events if recognized
-  if (aiResult.events && aiResult.events.length > 0) {
-    for (const event of aiResult.events) {
-      if (event.start_time && event.end_time) {
-        const eventResult = db.prepare(`
-          INSERT INTO calendar_events (user_id, title, start_time, end_time, location, calendar_source)
-          VALUES (?, ?, ?, ?, ?, 'local')
-        `).run(
-          userId,
-          event.title,
-          event.start_time,
-          event.end_time,
-          event.location || null
-        );
+  // Create todos
+  for (const todo of extractions.todos || []) {
+    try {
+      const todoData = {
+        title: todo.title,
+        description: todo.description || null,
+        priority: todo.priority || 3,
+        due_date: todo.dueDate || null
+      };
 
-        if (!createdEventId) {
-          createdEventId = eventResult.lastInsertRowid;
-        }
+      const result = await executeToolCall('create_todo', todoData, userId);
+      if (result.success) {
+        created.todos.push(result.todo);
+        console.log(`[Capture] Created todo: ${todo.title}`);
+      } else {
+        errors.push(`Aufgabe "${todo.title}": ${result.error}`);
       }
+    } catch (err) {
+      errors.push(`Aufgabe "${todo.title}": ${err.message}`);
     }
   }
 
-  // Update capture with created item IDs
-  db.prepare(`
-    UPDATE captures
-    SET created_note_id = ?,
-        created_todo_id = ?,
-        created_event_id = ?
-    WHERE id = ?
-  `).run(createdNoteId, createdTodoId, createdEventId, capture.id);
+  // Create notes
+  for (const note of extractions.notes || []) {
+    try {
+      const noteData = {
+        title: note.title,
+        content: note.content || '',
+        tags: note.tags || []
+      };
 
-  // Emit WebSocket event if available
-  if (global.io) {
-    global.io.to(`user:${userId}`).emit('capture:processed', {
-      captureId: capture.id,
-      noteId: createdNoteId,
-      todoId: createdTodoId,
-      eventId: createdEventId,
-      aiResult
-    });
+      const result = await executeToolCall('create_note', noteData, userId);
+      if (result.success) {
+        created.notes.push(result.note);
+        console.log(`[Capture] Created note: ${note.title}`);
+      } else {
+        errors.push(`Notiz "${note.title}": ${result.error}`);
+      }
+    } catch (err) {
+      errors.push(`Notiz "${note.title}": ${err.message}`);
+    }
   }
+
+  // Create contacts as notes
+  for (const contact of extractions.contacts || []) {
+    try {
+      const contactContent = formatContactAsNote(contact);
+      const noteData = {
+        title: `Kontakt: ${contact.name}`,
+        content: contactContent,
+        tags: ['kontakt', contact.name.toLowerCase().split(' ')[0]]
+      };
+
+      const result = await executeToolCall('create_note', noteData, userId);
+      if (result.success) {
+        created.contacts.push(result.note);
+        console.log(`[Capture] Created contact: ${contact.name}`);
+      } else {
+        errors.push(`Kontakt "${contact.name}": ${result.error}`);
+      }
+    } catch (err) {
+      errors.push(`Kontakt "${contact.name}": ${err.message}`);
+    }
+  }
+
+  if (errors.length > 0) {
+    console.log(`[Capture] Errors during item creation:`, errors);
+  }
+
+  return {
+    ...created,
+    errors: errors.length > 0 ? errors : undefined
+  };
+}
+
+function buildDateTime(date, time, addHours = 0) {
+  if (!date) {
+    const now = new Date();
+    date = now.toISOString().split('T')[0];
+  }
+
+  if (!time) {
+    return `${date}T00:00:00`;
+  }
+
+  const dt = new Date(`${date}T${time}:00`);
+
+  if (addHours > 0) {
+    dt.setHours(dt.getHours() + addHours);
+  }
+
+  return dt.toISOString();
+}
+
+function formatContactAsNote(contact) {
+  const lines = [];
+  if (contact.name) lines.push(`**Name:** ${contact.name}`);
+  if (contact.company) lines.push(`**Firma:** ${contact.company}`);
+  if (contact.position) lines.push(`**Position:** ${contact.position}`);
+  if (contact.email) lines.push(`**E-Mail:** ${contact.email}`);
+  if (contact.phone) lines.push(`**Telefon:** ${contact.phone}`);
+  return lines.join('\n');
 }
 
 module.exports = {
