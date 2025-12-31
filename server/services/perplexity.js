@@ -130,6 +130,8 @@ async function webResearch(query, userId, options = {}) {
     // Extract related questions if available
     const relatedQuestions = data.related_questions || [];
 
+    console.log('[Perplexity] Success! Summary length:', content.length, 'Citations:', citations.length);
+
     return {
       success: true,
       summary: content,
@@ -144,10 +146,11 @@ async function webResearch(query, userId, options = {}) {
     };
 
   } catch (error) {
-    console.error('Perplexity API error:', error);
+    console.error('[Perplexity] API error:', error.name, error.message);
 
     // Handle timeout
     if (error.name === 'AbortError') {
+      console.log('[Perplexity] Request timed out');
       return {
         success: false,
         error: 'Recherche-Anfrage hat zu lange gedauert. Bitte erneut versuchen.'

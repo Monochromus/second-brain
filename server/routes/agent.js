@@ -11,6 +11,8 @@ router.post('/chat', asyncHandler(async (req, res) => {
   const userId = req.userId;
   const { message, chatHistory } = req.body;
 
+  console.log('[Agent] Received request:', { userId, message: message?.substring(0, 50) });
+
   if (!message || !message.trim()) {
     return res.status(400).json({ error: 'Nachricht ist erforderlich.' });
   }
@@ -21,6 +23,12 @@ router.post('/chat', asyncHandler(async (req, res) => {
     : [];
 
   const result = await processAgentRequest(message.trim(), userId, validatedHistory);
+
+  console.log('[Agent] Response:', {
+    hasResponse: Boolean(result.response),
+    actionsCount: result.actions?.length || 0,
+    actions: result.actions?.map(a => a.tool) || []
+  });
 
   res.json(result);
 }));
