@@ -63,6 +63,8 @@ Regeln:
 7. Antworte immer auf Deutsch und knapp
 8. Bei Widget-Anfragen: Nutze list_widgets um bestehende Widgets zu sehen, create_widget für neue, update_widget zum Ändern
 9. Bei Projekterstellung: Ordne das Projekt automatisch einer passenden Area zu. Nutze zuerst list_areas um bestehende Areas zu sehen. Wenn keine passende Area existiert, erstelle eine neue mit create_area, bevor du das Projekt erstellst.
+10. Nutze web_research wenn der Nutzer nach aktuellen Informationen fragt, "recherchiere", "suche im Web", "was gibt es Neues zu..." sagt, oder du Fakten verifizieren möchtest
+11. Bei Recherche-Ergebnissen: Fasse die wichtigsten Punkte zusammen und verweise auf die Quellen
 
 Heute ist ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.`;
 
@@ -475,6 +477,22 @@ const tools = [
           id: { type: "string", description: "ID des zu löschenden Widgets" }
         },
         required: ["id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "web_research",
+      description: "Führt eine Web-Recherche mit Perplexity AI durch. Nutze dies wenn der Nutzer aktuelle Informationen benötigt, explizit nach Recherche fragt ('recherchiere', 'suche im Web'), oder du Fakten verifizieren möchtest. Liefert eine Zusammenfassung mit Quellen-Citations.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Die Suchanfrage. Formuliere präzise und spezifisch." },
+          recency: { type: "string", enum: ["hour", "day", "week", "month"], description: "Optional: Zeitfilter für Quellen. 'hour' für sehr aktuelle, 'week' für letzte Woche." },
+          domains: { type: "array", items: { type: "string" }, description: "Optional: Domains auf die Suche einschränken, z.B. ['wikipedia.org', 'arxiv.org']." }
+        },
+        required: ["query"]
       }
     }
   }
@@ -1197,6 +1215,33 @@ async function executeToolCall(toolName, args, userId) {
 
         db.prepare('DELETE FROM custom_tools WHERE id = ?').run(args.id);
         return { success: true, message: `Widget "${widget.name}" gelöscht.` };
+      }
+
+      case 'web_research': {
+        const { webResearch } = require('./perplexity');
+        const result = await webResearch(args.query, userId, {
+          recency: args.recency,
+          domains: args.domains
+        });
+
+        if (!result.success) {
+          return {
+            success: false,
+            type: 'research',
+            query: args.query,
+            error: result.error
+          };
+        }
+
+        return {
+          success: true,
+          type: 'research',
+          query: args.query,
+          summary: result.summary,
+          citations: result.citations,
+          relatedQuestions: result.relatedQuestions,
+          message: `Recherche zu "${args.query}" abgeschlossen.`
+        };
       }
 
       default:

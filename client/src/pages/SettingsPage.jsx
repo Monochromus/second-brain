@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User, Key, Calendar, Palette, RefreshCw, Bot, Eye, EyeOff, Check, Smartphone, Copy, Trash2, AlertTriangle, ExternalLink } from 'lucide-react';
+import { User, Key, Calendar, Palette, RefreshCw, Bot, Eye, EyeOff, Check, Smartphone, Copy, Trash2, AlertTriangle, ExternalLink, Globe } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
 import { useCalendarConnections } from '../hooks/useCalendar';
@@ -22,6 +22,30 @@ export default function SettingsPage() {
     openaiModel: user?.settings?.openaiModel || ''
   });
   const [showApiKey, setShowApiKey] = useState(false);
+
+  const [perplexityForm, setPerplexityForm] = useState({
+    apiKey: user?.settings?.perplexityApiKey || '',
+    model: user?.settings?.perplexityModel || 'sonar',
+    recencyFilter: user?.settings?.perplexityRecencyFilter || ''
+  });
+  const [showPerplexityKey, setShowPerplexityKey] = useState(false);
+
+  const perplexityModels = [
+    { id: 'sonar', name: 'Sonar', description: 'Standard, schnell', tier: 'free' },
+    { id: 'sonar-pro', name: 'Sonar Pro', description: 'Genauer, mehr Quellen', tier: 'pro' },
+    { id: 'sonar-reasoning', name: 'Sonar Reasoning', description: 'Für komplexe Fragen', tier: 'pro' },
+    { id: 'sonar-deep-research', name: 'Deep Research', description: 'Tiefgehende Analyse', tier: 'pro' }
+  ];
+
+  const hasOwnPerplexityKey = Boolean(perplexityForm.apiKey?.trim());
+
+  const recencyOptions = [
+    { id: '', name: 'Kein Filter', description: 'Alle Quellen' },
+    { id: 'hour', name: 'Letzte Stunde', description: 'Sehr aktuell' },
+    { id: 'day', name: 'Letzter Tag', description: '24 Stunden' },
+    { id: 'week', name: 'Letzte Woche', description: '7 Tage' },
+    { id: 'month', name: 'Letzter Monat', description: '30 Tage' }
+  ];
 
   const availableModels = [
     { id: 'gpt-4o-mini', name: 'GPT-4o Mini', description: 'Günstig & schnell - $0.15/1M Tokens', tier: 'free' },
@@ -51,6 +75,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState({
     profile: false,
     apiKey: false,
+    perplexity: false,
     password: false,
     calendar: false
   });
@@ -153,6 +178,27 @@ export default function SettingsPage() {
       toast.error('Fehler beim Speichern');
     } finally {
       setSaving({ ...saving, apiKey: false });
+    }
+  };
+
+  const handleSavePerplexity = async (e) => {
+    e.preventDefault();
+    setSaving({ ...saving, perplexity: true });
+    try {
+      const currentSettings = user?.settings || {};
+      await updateSettings({
+        settings: {
+          ...currentSettings,
+          perplexityApiKey: perplexityForm.apiKey,
+          perplexityModel: perplexityForm.model || 'sonar',
+          perplexityRecencyFilter: perplexityForm.recencyFilter || null
+        }
+      });
+      toast.success('Web-Recherche Einstellungen gespeichert');
+    } catch (error) {
+      toast.error('Fehler beim Speichern');
+    } finally {
+      setSaving({ ...saving, perplexity: false });
     }
   };
 
@@ -331,6 +377,108 @@ export default function SettingsPage() {
               className="btn btn-primary"
             >
               {saving.apiKey ? 'Speichere...' : 'Speichern'}
+            </button>
+          </form>
+        </div>
+
+        {/* Perplexity Web Research Section */}
+        <div className="card p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
+              <Globe className="w-5 h-5 text-accent" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-text-primary">Web-Recherche</h2>
+              <p className="text-sm text-text-secondary">Perplexity AI für aktuelle Web-Suchen</p>
+            </div>
+          </div>
+
+          <form onSubmit={handleSavePerplexity} className="space-y-4">
+            <div>
+              <label className="label">Perplexity API-Key (optional)</label>
+              <div className="relative">
+                <input
+                  type={showPerplexityKey ? 'text' : 'password'}
+                  value={perplexityForm.apiKey}
+                  onChange={(e) => setPerplexityForm({ ...perplexityForm, apiKey: e.target.value })}
+                  className="input pr-10"
+                  placeholder="pplx-... (für Web-Recherche)"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPerplexityKey(!showPerplexityKey)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary"
+                >
+                  {showPerplexityKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-xs text-text-secondary mt-1">
+                API-Key von{' '}
+                <a
+                  href="https://www.perplexity.ai/settings/api"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent hover:underline"
+                >
+                  perplexity.ai/settings/api
+                </a>
+                {' '}- ermöglicht dem Assistenten, aktuelle Informationen aus dem Web zu recherchieren
+              </p>
+            </div>
+
+            <div>
+              <label className="label">Recherche-Modell</label>
+              <select
+                value={hasOwnPerplexityKey ? (perplexityForm.model || 'sonar') : 'sonar'}
+                onChange={(e) => setPerplexityForm({ ...perplexityForm, model: e.target.value })}
+                className={cn('input', !hasOwnPerplexityKey && 'opacity-50 cursor-not-allowed')}
+                disabled={!hasOwnPerplexityKey}
+              >
+                {perplexityModels.map((model) => (
+                  <option
+                    key={model.id}
+                    value={model.id}
+                    disabled={!hasOwnPerplexityKey && model.tier === 'pro'}
+                  >
+                    {model.name} - {model.description} {model.tier === 'pro' && !hasOwnPerplexityKey ? '(Pro)' : ''}
+                  </option>
+                ))}
+              </select>
+              {!hasOwnPerplexityKey ? (
+                <p className="text-xs text-text-secondary mt-1">
+                  Sonar wird kostenlos verwendet. Eigenen API-Key eingeben um andere Modelle zu wählen.
+                </p>
+              ) : (
+                <p className="text-xs text-text-secondary mt-1">
+                  {perplexityModels.find(m => m.id === (perplexityForm.model || 'sonar'))?.description}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="label">Standard-Zeitfilter</label>
+              <select
+                value={perplexityForm.recencyFilter}
+                onChange={(e) => setPerplexityForm({ ...perplexityForm, recencyFilter: e.target.value })}
+                className="input"
+              >
+                {recencyOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name} {option.description && `(${option.description})`}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-text-secondary mt-1">
+                Beschränkt Suchergebnisse auf aktuelle Quellen
+              </p>
+            </div>
+
+            <button
+              type="submit"
+              disabled={saving.perplexity}
+              className="btn btn-primary"
+            >
+              {saving.perplexity ? 'Speichere...' : 'Speichern'}
             </button>
           </form>
         </div>

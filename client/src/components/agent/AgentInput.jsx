@@ -3,6 +3,7 @@ import { Send, Sparkles, Loader2, ChevronDown, ChevronUp, Image as ImageIcon, X 
 import { cn } from '../../lib/utils';
 import ImageUpload from './ImageUpload';
 import ExtractionResults from './ExtractionResults';
+import ResearchResults from './ResearchResults';
 
 export default function AgentInput({
   onSend,
@@ -228,6 +229,12 @@ export default function AgentInput({
                 </span>
               ))}
             </div>
+          )}
+          {/* Research Results */}
+          {isResponseExpanded && lastResponse.actions?.some(a => a.result?.type === 'research') && (
+            <ResearchResults
+              research={lastResponse.actions.find(a => a.result?.type === 'research')?.result}
+            />
           )}
         </div>
       )}
