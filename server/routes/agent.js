@@ -11,7 +11,16 @@ router.post('/chat', asyncHandler(async (req, res) => {
   const userId = req.userId;
   const { message, chatHistory } = req.body;
 
-  console.log('[Agent] Received request:', { userId, message: message?.substring(0, 50) });
+  // Check if chat history contains research results
+  const hasResearchInHistory = Array.isArray(chatHistory) &&
+    chatHistory.some(h => h.assistant?.includes('[Web-Recherche'));
+
+  console.log('[Agent] Received request:', {
+    userId,
+    message: message?.substring(0, 50),
+    historyLength: chatHistory?.length || 0,
+    hasResearchInHistory
+  });
 
   if (!message || !message.trim()) {
     return res.status(400).json({ error: 'Nachricht ist erforderlich.' });

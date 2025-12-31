@@ -60,19 +60,25 @@ export function AgentProvider({ children }) {
     setLastResponse(null);
 
     // Build chat history: last 15 user messages, last 5 with full response details
-    const chatHistory = history
-      .slice(0, 15)
+    const recentHistory = history.slice(0, 15);
+    const chatHistory = recentHistory
       .reverse()
       .map((entry, index, arr) => {
         const isRecent = index >= arr.length - 5; // Last 5 entries get full details
 
         // For recent entries, include research results if available
-        let assistantContent = entry.response;
+        let assistantContent = entry.response || '';
         if (isRecent && entry.actions?.length > 0) {
-          const researchAction = entry.actions.find(a => a.result?.type === 'research');
-          if (researchAction?.result?.summary) {
-            assistantContent += `\n\n[Recherche-Ergebnis zu "${researchAction.result.query}"]: ${researchAction.result.summary}`;
-          }
+          // Include ALL action results for context
+          entry.actions.forEach(action => {
+            if (action.result?.type === 'research' && action.result?.summary) {
+              assistantContent += `\n\n[Web-Recherche zu "${action.result.query}"]:\n${action.result.summary}`;
+              // Also include citations summary if available
+              if (action.result.citations?.length > 0) {
+                assistantContent += `\n\nQuellen: ${action.result.citations.map(c => c.title || c.url).join(', ')}`;
+              }
+            }
+          });
         }
 
         return {
@@ -80,6 +86,12 @@ export function AgentProvider({ children }) {
           assistant: assistantContent
         };
       });
+
+    // Debug log to verify research results are included
+    const hasResearch = chatHistory.some(h => h.assistant?.includes('[Web-Recherche'));
+    if (hasResearch) {
+      console.log('[AgentContext] Chat history includes research results');
+    }
 
     try {
       const response = await api.post('/agent/chat', { message, chatHistory });
