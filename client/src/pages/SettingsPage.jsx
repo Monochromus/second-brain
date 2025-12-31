@@ -402,7 +402,7 @@ export default function SettingsPage() {
                   value={perplexityForm.apiKey}
                   onChange={(e) => setPerplexityForm({ ...perplexityForm, apiKey: e.target.value })}
                   className="input pr-10"
-                  placeholder="pplx-... (für Web-Recherche)"
+                  placeholder="pplx-... (leer lassen für Standard)"
                 />
                 <button
                   type="button"
