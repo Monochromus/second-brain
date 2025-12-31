@@ -75,14 +75,21 @@ async function webResearch(query, userId, options = {}) {
   }
 
   try {
+    // Add timeout to prevent hanging requests
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
     const response = await fetch('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify(requestBody),
+      signal: controller.signal
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -130,6 +137,15 @@ async function webResearch(query, userId, options = {}) {
 
   } catch (error) {
     console.error('Perplexity API error:', error);
+
+    // Handle timeout
+    if (error.name === 'AbortError') {
+      return {
+        success: false,
+        error: 'Recherche-Anfrage hat zu lange gedauert. Bitte erneut versuchen.'
+      };
+    }
+
     return {
       success: false,
       error: 'Verbindung zu Perplexity fehlgeschlagen. Bitte später erneut versuchen.'
