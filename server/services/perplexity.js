@@ -11,15 +11,14 @@ function getUserPerplexitySettings(userId) {
       const settings = JSON.parse(user.settings);
       return {
         apiKey: settings.perplexityApiKey || null,
-        model: settings.perplexityModel || 'sonar',
-        recencyFilter: settings.perplexityRecencyFilter || null
+        model: settings.perplexityModel || 'sonar'
       };
     } catch {
-      return { apiKey: null, model: 'sonar', recencyFilter: null };
+      return { apiKey: null, model: 'sonar' };
     }
   }
 
-  return { apiKey: null, model: 'sonar', recencyFilter: null };
+  return { apiKey: null, model: 'sonar' };
 }
 
 /**
@@ -55,7 +54,8 @@ async function webResearch(query, userId, options = {}) {
   // Pro models (sonar-pro, sonar-reasoning, sonar-deep-research) require own key
   const requestedModel = options.model || settings.model || 'sonar';
   const model = hasOwnKey ? requestedModel : 'sonar';
-  const recencyFilter = options.recency || settings.recencyFilter;
+  // Zeitfilter wird vom KI-Modell selbst gewählt (options.recency)
+  const recencyFilter = options.recency || null;
 
   // Build request body
   const requestBody = {

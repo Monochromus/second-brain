@@ -25,8 +25,7 @@ export default function SettingsPage() {
 
   const [perplexityForm, setPerplexityForm] = useState({
     apiKey: user?.settings?.perplexityApiKey || '',
-    model: user?.settings?.perplexityModel || 'sonar',
-    recencyFilter: user?.settings?.perplexityRecencyFilter || ''
+    model: user?.settings?.perplexityModel || 'sonar'
   });
   const [showPerplexityKey, setShowPerplexityKey] = useState(false);
 
@@ -38,14 +37,6 @@ export default function SettingsPage() {
   ];
 
   const hasOwnPerplexityKey = Boolean(perplexityForm.apiKey?.trim());
-
-  const recencyOptions = [
-    { id: '', name: 'Kein Filter', description: 'Alle Quellen' },
-    { id: 'hour', name: 'Letzte Stunde', description: 'Sehr aktuell' },
-    { id: 'day', name: 'Letzter Tag', description: '24 Stunden' },
-    { id: 'week', name: 'Letzte Woche', description: '7 Tage' },
-    { id: 'month', name: 'Letzter Monat', description: '30 Tage' }
-  ];
 
   const availableModels = [
     { id: 'gpt-4o-mini', name: 'GPT-4o Mini', description: 'Günstig & schnell - $0.15/1M Tokens', tier: 'free' },
@@ -190,8 +181,7 @@ export default function SettingsPage() {
         settings: {
           ...currentSettings,
           perplexityApiKey: perplexityForm.apiKey,
-          perplexityModel: perplexityForm.model || 'sonar',
-          perplexityRecencyFilter: perplexityForm.recencyFilter || null
+          perplexityModel: perplexityForm.model || 'sonar'
         }
       });
       toast.success('Web-Recherche Einstellungen gespeichert');
@@ -453,24 +443,6 @@ export default function SettingsPage() {
                   {perplexityModels.find(m => m.id === (perplexityForm.model || 'sonar'))?.description}
                 </p>
               )}
-            </div>
-
-            <div>
-              <label className="label">Standard-Zeitfilter</label>
-              <select
-                value={perplexityForm.recencyFilter}
-                onChange={(e) => setPerplexityForm({ ...perplexityForm, recencyFilter: e.target.value })}
-                className="input"
-              >
-                {recencyOptions.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.name} {option.description && `(${option.description})`}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-text-secondary mt-1">
-                Beschränkt Suchergebnisse auf aktuelle Quellen
-              </p>
             </div>
 
             <button

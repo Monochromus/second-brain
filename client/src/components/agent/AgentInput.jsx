@@ -1,9 +1,109 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, Loader2, ChevronDown, ChevronUp, Image as ImageIcon, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Send, Sparkles, Loader2, ChevronDown, ChevronUp, Image as ImageIcon, X,
+  CheckCircle, FileText, Calendar, FolderKanban, Globe, ArrowRight
+} from 'lucide-react';
 import { cn } from '../../lib/utils';
 import ImageUpload from './ImageUpload';
 import ExtractionResults from './ExtractionResults';
 import ResearchResults from './ResearchResults';
+
+// Hilfsfunktion: Kurzform der Antwort generieren (erster Satz oder max. 120 Zeichen)
+function getSummary(text) {
+  if (!text) return '';
+  // Erster Satz (endet mit . ! oder ?)
+  const firstSentence = text.match(/^[^.!?]+[.!?]/);
+  if (firstSentence && firstSentence[0].length <= 150) {
+    return firstSentence[0].trim();
+  }
+  // Falls kein Satz oder zu lang: ersten 120 Zeichen
+  if (text.length <= 120) return text;
+  return text.slice(0, 117).trim() + '...';
+}
+
+// Hilfsfunktion: Detailinhalt (alles nach dem ersten Satz)
+function getDetailContent(text) {
+  if (!text) return '';
+  // Erster Satz finden
+  const firstSentence = text.match(/^[^.!?]+[.!?]/);
+  if (firstSentence && firstSentence[0].length <= 150) {
+    const rest = text.slice(firstSentence[0].length).trim();
+    return rest;
+  }
+  // Falls kein klarer erster Satz: ab Zeichen 120
+  if (text.length <= 120) return '';
+  return text.slice(117).trim();
+}
+
+// Hilfsfunktion: Icon und Navigation für Aktion
+function getActionInfo(action) {
+  const tool = action.tool;
+  const result = action.result;
+
+  if (tool.includes('todo')) {
+    return {
+      icon: CheckCircle,
+      label: result?.todo?.title || 'Aufgabe',
+      color: 'text-emerald-600 dark:text-emerald-400',
+      bgColor: 'bg-emerald-500/10 border-emerald-500/20',
+      route: '/',
+      type: 'todo',
+      id: result?.todo?.id
+    };
+  }
+  if (tool.includes('note')) {
+    return {
+      icon: FileText,
+      label: result?.note?.title || 'Notiz',
+      color: 'text-blue-600 dark:text-blue-400',
+      bgColor: 'bg-blue-500/10 border-blue-500/20',
+      route: '/',
+      type: 'note',
+      id: result?.note?.id
+    };
+  }
+  if (tool.includes('calendar') || tool.includes('event')) {
+    return {
+      icon: Calendar,
+      label: result?.event?.title || 'Termin',
+      color: 'text-purple-600 dark:text-purple-400',
+      bgColor: 'bg-purple-500/10 border-purple-500/20',
+      route: '/calendar',
+      type: 'event',
+      id: result?.event?.id
+    };
+  }
+  if (tool.includes('project')) {
+    return {
+      icon: FolderKanban,
+      label: result?.project?.name || 'Projekt',
+      color: 'text-amber-600 dark:text-amber-400',
+      bgColor: 'bg-amber-500/10 border-amber-500/20',
+      route: result?.project?.id ? `/project/${result.project.id}` : '/projects',
+      type: 'project',
+      id: result?.project?.id
+    };
+  }
+  if (result?.type === 'research') {
+    return {
+      icon: Globe,
+      label: 'Web-Recherche',
+      color: 'text-cyan-600 dark:text-cyan-400',
+      bgColor: 'bg-cyan-500/10 border-cyan-500/20',
+      route: null,
+      type: 'research'
+    };
+  }
+  return {
+    icon: Sparkles,
+    label: tool.replace(/_/g, ' '),
+    color: 'text-gray-600 dark:text-gray-400',
+    bgColor: 'bg-gray-500/10 border-gray-500/20',
+    route: null,
+    type: 'other'
+  };
+}
 
 export default function AgentInput({
   onSend,
@@ -16,6 +116,7 @@ export default function AgentInput({
   onCancelExtraction,
   isConfirming
 }) {
+  const navigate = useNavigate();
   const [message, setMessage] = useState('');
   const [isResponseExpanded, setIsResponseExpanded] = useState(false);
   const [isExamplesExpanded, setIsExamplesExpanded] = useState(false);
@@ -189,22 +290,31 @@ export default function AgentInput({
         </div>
       </form>
 
-      {lastResponse && !extractedData && (
+      {lastResponse && !extractedData && (() => {
+        // Prüfen ob es eine Recherche-Antwort ist
+        const hasResearch = lastResponse.actions?.some(a => a.result?.type === 'research');
+
+        return (
         <div className="mt-3 pt-3 border-t border-white/20 dark:border-white/10">
-          <div className="flex items-start justify-between gap-2">
-            <p
-              className={cn(
-                "text-sm text-text-primary flex-1 cursor-pointer",
-                !isResponseExpanded && "line-clamp-1"
-              )}
-              onClick={() => setIsResponseExpanded(!isResponseExpanded)}
-            >
-              {lastResponse.response}
-            </p>
+          {/* Kurzform - Immer sichtbar */}
+          <div className="flex items-start gap-3">
+            <div className="flex-1 min-w-0">
+              {/* Kurzantwort - bei Recherche vollständig, sonst nur erster Satz */}
+              <p className="text-sm text-text-primary font-medium">
+                {hasResearch ? lastResponse.response : getSummary(lastResponse.response)}
+              </p>
+            </div>
+
+            {/* Ausklappen-Button */}
             <button
               onClick={() => setIsResponseExpanded(!isResponseExpanded)}
-              className="p-1 rounded-md text-text-secondary hover:text-text-primary hover:bg-white/20 dark:hover:bg-white/10 transition-colors flex-shrink-0"
-              title={isResponseExpanded ? "Einklappen" : "Ausklappen"}
+              className={cn(
+                "p-1.5 rounded-lg transition-all duration-200 flex-shrink-0",
+                "text-text-secondary hover:text-accent",
+                "hover:bg-white/30 dark:hover:bg-white/10",
+                isResponseExpanded && "bg-accent/10 text-accent"
+              )}
+              title={isResponseExpanded ? "Einklappen" : "Details anzeigen"}
             >
               {isResponseExpanded ? (
                 <ChevronUp className="w-4 h-4" />
@@ -213,35 +323,143 @@ export default function AgentInput({
               )}
             </button>
           </div>
+
+          {/* Detailansicht - Ausgeklappt */}
           {isResponseExpanded && (
-            <div className="max-h-[50vh] overflow-y-auto mt-2 pr-1">
-              {lastResponse.actions && lastResponse.actions.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {lastResponse.actions.map((action, i) => (
-                    <span
-                      key={i}
-                      className={cn(
-                        'text-xs px-2 py-1 rounded-full backdrop-blur-sm',
-                        action.result?.success
-                          ? 'bg-green-500/20 text-green-700 dark:text-green-400 border border-green-500/30'
-                          : 'bg-red-500/20 text-red-700 dark:text-red-400 border border-red-500/30'
-                      )}
-                    >
-                      {action.tool.replace(/_/g, ' ')}
-                    </span>
-                  ))}
+            <div className="mt-4 overflow-hidden rounded-2xl animate-fadeIn">
+              {/* Main Container with Liquid Glass Effect - Emerald Theme */}
+              <div className="relative glass-strong border-2 border-white/30 dark:border-white/10 overflow-hidden">
+                {/* Decorative gradient background - Emerald/Teal */}
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-green-500/10 pointer-events-none" />
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-radial from-emerald-500/20 to-transparent blur-2xl pointer-events-none" />
+
+                <div className="relative p-4 space-y-4 max-h-[50vh] overflow-y-auto">
+                  {/* Aktions-Badges - Klickbar zu erstellten Objekten */}
+                  {lastResponse.actions?.some(a => a.result?.success) && (
+                    <div className="relative p-4 rounded-xl glass-subtle overflow-hidden">
+                      {/* Section gradient - Indigo/Violet */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 via-transparent to-violet-500/5 pointer-events-none" />
+
+                      <div className="relative">
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="text-lg">✨</span>
+                          <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
+                            Ausgeführte Aktionen
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {lastResponse.actions
+                            .filter(a => a.result?.success)
+                            .map((action, i) => {
+                              const info = getActionInfo(action);
+                              const Icon = info.icon;
+                              const isClickable = info.route !== null;
+
+                              return (
+                                <button
+                                  key={i}
+                                  onClick={() => isClickable && navigate(info.route)}
+                                  disabled={!isClickable}
+                                  className={cn(
+                                    'inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl',
+                                    'border backdrop-blur-sm transition-all duration-200',
+                                    'bg-white/40 dark:bg-white/10',
+                                    info.color,
+                                    'border-white/30 dark:border-white/10',
+                                    isClickable && 'hover:scale-105 cursor-pointer hover:shadow-md hover:bg-white/60 dark:hover:bg-white/15',
+                                    !isClickable && 'cursor-default'
+                                  )}
+                                  title={isClickable ? `Zu "${info.label}" gehen` : info.label}
+                                >
+                                  <Icon className="w-4 h-4" />
+                                  <span className="max-w-[150px] truncate font-medium">{info.label}</span>
+                                  {isClickable && <ArrowRight className="w-3 h-3 opacity-60" />}
+                                </button>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Zusätzliche Details - nur wenn es welche gibt UND keine Recherche (da Details dort schon enthalten) */}
+                  {!hasResearch && getDetailContent(lastResponse.response) && (
+                    <div className="relative p-4 rounded-xl glass-subtle overflow-hidden group hover:glass transition-all duration-300">
+                      {/* Section gradient */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 via-transparent to-teal-500/5 pointer-events-none" />
+
+                      <div className="relative">
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="text-lg">💡</span>
+                          <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+                            Details
+                          </span>
+                        </div>
+                        <p className="text-sm text-text-primary whitespace-pre-wrap leading-relaxed pl-1">
+                          {getDetailContent(lastResponse.response)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Fehlgeschlagene Aktionen */}
+                  {lastResponse.actions?.some(a => !a.result?.success) && (
+                    <div className="relative p-4 rounded-xl glass-subtle overflow-hidden">
+                      {/* Section gradient - Red */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-red-500/5 via-transparent to-orange-500/5 pointer-events-none" />
+
+                      <div className="relative">
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="text-lg">⚠️</span>
+                          <span className="text-xs font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider">
+                            Fehlgeschlagen
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {lastResponse.actions
+                            .filter(a => !a.result?.success)
+                            .map((action, i) => (
+                              <span
+                                key={i}
+                                className={cn(
+                                  "text-xs px-3 py-2 rounded-xl",
+                                  "bg-white/40 dark:bg-white/10",
+                                  "text-red-700 dark:text-red-400",
+                                  "border border-red-500/20"
+                                )}
+                                title={action.result?.error || 'Fehler'}
+                              >
+                                {action.tool.replace(/_/g, ' ')}
+                              </span>
+                            ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Research Results */}
+                  {lastResponse.actions?.some(a => a.result?.type === 'research') && (
+                    <ResearchResults
+                      research={lastResponse.actions.find(a => a.result?.type === 'research')?.result}
+                    />
+                  )}
+
+                  {/* Falls keine Details, keine Aktionen und keine Research - kleine Info */}
+                  {!getDetailContent(lastResponse.response) &&
+                   !lastResponse.actions?.some(a => a.result?.success) &&
+                   !lastResponse.actions?.some(a => a.result?.type === 'research') &&
+                   !lastResponse.actions?.some(a => !a.result?.success) && (
+                    <div className="flex items-center justify-center py-4 text-text-secondary/50">
+                      <span className="text-xs">Keine weiteren Details verfügbar</span>
+                    </div>
+                  )}
                 </div>
-              )}
-              {/* Research Results */}
-              {lastResponse.actions?.some(a => a.result?.type === 'research') && (
-                <ResearchResults
-                  research={lastResponse.actions.find(a => a.result?.type === 'research')?.result}
-                />
-              )}
+              </div>
             </div>
           )}
         </div>
-      )}
+        );
+      })()}
 
       {!lastResponse && !isProcessing && !showImageUpload && !extractedData && (
         <div className="mt-2">

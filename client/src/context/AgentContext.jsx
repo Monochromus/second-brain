@@ -1,13 +1,55 @@
-import { createContext, useState, useCallback, useRef } from 'react';
+import { createContext, useState, useCallback, useRef, useEffect } from 'react';
 import { api } from '../lib/api';
 import toast from 'react-hot-toast';
 
 export const AgentContext = createContext(null);
 
+// LocalStorage Keys
+const STORAGE_KEYS = {
+  LAST_RESPONSE: 'agent_lastResponse',
+  HISTORY: 'agent_history'
+};
+
+// Hilfsfunktionen für localStorage
+function loadFromStorage(key, defaultValue) {
+  try {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : defaultValue;
+  } catch {
+    return defaultValue;
+  }
+}
+
+function saveToStorage(key, value) {
+  try {
+    if (value === null || value === undefined) {
+      localStorage.removeItem(key);
+    } else {
+      localStorage.setItem(key, JSON.stringify(value));
+    }
+  } catch (e) {
+    console.warn('Failed to save to localStorage:', e);
+  }
+}
+
 export function AgentProvider({ children }) {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [lastResponse, setLastResponse] = useState(null);
-  const [history, setHistory] = useState([]);
+  const [lastResponse, setLastResponse] = useState(() =>
+    loadFromStorage(STORAGE_KEYS.LAST_RESPONSE, null)
+  );
+  const [history, setHistory] = useState(() =>
+    loadFromStorage(STORAGE_KEYS.HISTORY, [])
+  );
+
+  // Persist lastResponse to localStorage
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.LAST_RESPONSE, lastResponse);
+  }, [lastResponse]);
+
+  // Persist history to localStorage
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.HISTORY, history);
+  }, [history]);
 
   // Vision/Image states
   const [visionResponse, setVisionResponse] = useState(null);
@@ -234,6 +276,9 @@ export function AgentProvider({ children }) {
     setLastResponse(null);
     setExtractedData(null);
     setVisionResponse(null);
+    // Auch localStorage leeren
+    saveToStorage(STORAGE_KEYS.HISTORY, []);
+    saveToStorage(STORAGE_KEYS.LAST_RESPONSE, null);
   }, []);
 
   return (
