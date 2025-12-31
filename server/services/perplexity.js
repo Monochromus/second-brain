@@ -36,6 +36,14 @@ async function webResearch(query, userId, options = {}) {
   const hasOwnKey = Boolean(settings.apiKey);
   const apiKey = settings.apiKey || process.env.PERPLEXITY_API_KEY;
 
+  // Debug log
+  console.log('[Perplexity] Research request:', {
+    query,
+    hasOwnKey,
+    hasEnvKey: Boolean(process.env.PERPLEXITY_API_KEY),
+    keyPrefix: apiKey ? apiKey.substring(0, 10) + '...' : 'NONE'
+  });
+
   if (!apiKey) {
     return {
       success: false,
