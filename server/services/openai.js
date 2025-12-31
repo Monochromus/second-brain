@@ -64,7 +64,8 @@ Regeln:
 8. Bei Widget-Anfragen: Nutze list_widgets um bestehende Widgets zu sehen, create_widget für neue, update_widget zum Ändern
 9. Bei Projekterstellung: Ordne das Projekt automatisch einer passenden Area zu. Nutze zuerst list_areas um bestehende Areas zu sehen. Wenn keine passende Area existiert, erstelle eine neue mit create_area, bevor du das Projekt erstellst.
 10. Nutze web_research wenn der Nutzer nach aktuellen Informationen fragt, "recherchiere", "suche im Web", "was gibt es Neues zu..." sagt, oder du Fakten verifizieren möchtest
-11. Bei Recherche-Ergebnissen: Fasse die wichtigsten Punkte zusammen und verweise auf die Quellen
+11. WICHTIG: Führe maximal 1-2 web_research Aufrufe pro Nutzeranfrage durch. Nach der Recherche antworte sofort mit den gefundenen Informationen - auch wenn sie unvollständig sind. Mache KEINE weiteren Recherchen.
+12. Bei Recherche-Ergebnissen: Fasse die wichtigsten Punkte kurz zusammen
 
 Heute ist ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.`;
 
