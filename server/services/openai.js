@@ -1274,7 +1274,7 @@ async function processAgentRequest(message, userId, chatHistory = []) {
     { role: 'system', content: SYSTEM_PROMPT }
   ];
 
-  // Add chat history (last 10 conversations for context)
+  // Add chat history (last 15 conversations, last 5 include research results)
   for (const entry of chatHistory) {
     if (entry.user) {
       messages.push({ role: 'user', content: entry.user });

@@ -17,9 +17,9 @@ router.post('/chat', asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'Nachricht ist erforderlich.' });
   }
 
-  // Validate and limit chat history to last 10 entries
+  // Validate and limit chat history to last 15 entries
   const validatedHistory = Array.isArray(chatHistory)
-    ? chatHistory.slice(0, 10)
+    ? chatHistory.slice(0, 15)
     : [];
 
   const result = await processAgentRequest(message.trim(), userId, validatedHistory);

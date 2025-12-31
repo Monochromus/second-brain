@@ -59,13 +59,27 @@ export function AgentProvider({ children }) {
     setIsProcessing(true);
     setLastResponse(null);
 
+    // Build chat history: last 15 user messages, last 5 with full response details
     const chatHistory = history
-      .slice(0, 10)
+      .slice(0, 15)
       .reverse()
-      .map(entry => ({
-        user: entry.message,
-        assistant: entry.response
-      }));
+      .map((entry, index, arr) => {
+        const isRecent = index >= arr.length - 5; // Last 5 entries get full details
+
+        // For recent entries, include research results if available
+        let assistantContent = entry.response;
+        if (isRecent && entry.actions?.length > 0) {
+          const researchAction = entry.actions.find(a => a.result?.type === 'research');
+          if (researchAction?.result?.summary) {
+            assistantContent += `\n\n[Recherche-Ergebnis zu "${researchAction.result.query}"]: ${researchAction.result.summary}`;
+          }
+        }
+
+        return {
+          user: entry.message,
+          assistant: assistantContent
+        };
+      });
 
     try {
       const response = await api.post('/agent/chat', { message, chatHistory });
