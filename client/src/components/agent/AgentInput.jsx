@@ -213,28 +213,32 @@ export default function AgentInput({
               )}
             </button>
           </div>
-          {isResponseExpanded && lastResponse.actions && lastResponse.actions.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-2">
-              {lastResponse.actions.map((action, i) => (
-                <span
-                  key={i}
-                  className={cn(
-                    'text-xs px-2 py-1 rounded-full backdrop-blur-sm',
-                    action.result?.success
-                      ? 'bg-green-500/20 text-green-700 dark:text-green-400 border border-green-500/30'
-                      : 'bg-red-500/20 text-red-700 dark:text-red-400 border border-red-500/30'
-                  )}
-                >
-                  {action.tool.replace(/_/g, ' ')}
-                </span>
-              ))}
+          {isResponseExpanded && (
+            <div className="max-h-[50vh] overflow-y-auto mt-2 pr-1">
+              {lastResponse.actions && lastResponse.actions.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {lastResponse.actions.map((action, i) => (
+                    <span
+                      key={i}
+                      className={cn(
+                        'text-xs px-2 py-1 rounded-full backdrop-blur-sm',
+                        action.result?.success
+                          ? 'bg-green-500/20 text-green-700 dark:text-green-400 border border-green-500/30'
+                          : 'bg-red-500/20 text-red-700 dark:text-red-400 border border-red-500/30'
+                      )}
+                    >
+                      {action.tool.replace(/_/g, ' ')}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {/* Research Results */}
+              {lastResponse.actions?.some(a => a.result?.type === 'research') && (
+                <ResearchResults
+                  research={lastResponse.actions.find(a => a.result?.type === 'research')?.result}
+                />
+              )}
             </div>
-          )}
-          {/* Research Results */}
-          {isResponseExpanded && lastResponse.actions?.some(a => a.result?.type === 'research') && (
-            <ResearchResults
-              research={lastResponse.actions.find(a => a.result?.type === 'research')?.result}
-            />
           )}
         </div>
       )}
