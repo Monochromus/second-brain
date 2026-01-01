@@ -10,7 +10,7 @@ export default function NoteCard({ note, onEdit, onDelete, onTogglePin }) {
   return (
     <div
       className={cn(
-        'group card p-4 hover:shadow-md transition-all duration-200 cursor-pointer',
+        'group notebook-card p-4 hover:shadow-md transition-all duration-200 cursor-pointer',
         'hover:border-accent/30'
       )}
       style={note.color ? { borderLeftColor: note.color, borderLeftWidth: '3px' } : undefined}
@@ -87,16 +87,16 @@ export default function NoteCard({ note, onEdit, onDelete, onTogglePin }) {
           {note.tags?.slice(0, 3).map((tag, i) => (
             <span
               key={i}
-              className="text-xs px-2 py-0.5 bg-surface-secondary text-text-secondary rounded-full"
+              className="text-xs px-2 py-0.5 bg-surface-secondary text-text-secondary rounded-full font-handwriting"
             >
               #{tag}
             </span>
           ))}
           {note.tags?.length > 3 && (
-            <span className="text-xs text-text-secondary">+{note.tags.length - 3}</span>
+            <span className="text-xs text-text-secondary font-sans">+{note.tags.length - 3}</span>
           )}
         </div>
-        <span className="text-xs text-text-secondary">
+        <span className="text-xs text-text-secondary font-handwriting">
           {formatTimeAgo(note.updated_at)}
         </span>
       </div>

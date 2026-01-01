@@ -259,6 +259,22 @@ function runMigrations() {
     console.log('Migration: Added area_id to resources');
   }
 
+  // Check and add icon to projects
+  try {
+    db.prepare('SELECT icon FROM projects LIMIT 1').get();
+  } catch {
+    db.exec("ALTER TABLE projects ADD COLUMN icon TEXT DEFAULT 'folder'");
+    console.log('Migration: Added icon to projects');
+  }
+
+  // Check and add cover_image to areas
+  try {
+    db.prepare('SELECT cover_image FROM areas LIMIT 1').get();
+  } catch {
+    db.exec('ALTER TABLE areas ADD COLUMN cover_image TEXT');
+    console.log('Migration: Added cover_image to areas');
+  }
+
   // Create captures table if not exists
   db.exec(`
     CREATE TABLE IF NOT EXISTS captures (

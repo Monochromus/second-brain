@@ -113,7 +113,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
 
 router.post('/', asyncHandler(async (req, res) => {
   const userId = req.userId;
-  const { name, description, color, status, deadline, position, area_id } = req.body;
+  const { name, description, color, status, deadline, position, area_id, icon } = req.body;
 
   if (!name || !name.trim()) {
     return res.status(400).json({ error: 'Projektname ist erforderlich.' });
@@ -132,8 +132,8 @@ router.post('/', asyncHandler(async (req, res) => {
   const newPosition = position !== undefined ? position : (maxPosition.max || 0) + 1;
 
   const result = db.prepare(`
-    INSERT INTO projects (user_id, name, description, color, status, deadline, position, area_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO projects (user_id, name, description, color, status, deadline, position, area_id, icon)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     userId,
     name.trim(),
@@ -142,7 +142,8 @@ router.post('/', asyncHandler(async (req, res) => {
     status || 'active',
     deadline || null,
     newPosition,
-    area_id || null
+    area_id || null,
+    icon || 'folder'
   );
 
   const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(result.lastInsertRowid);
@@ -164,7 +165,7 @@ router.post('/', asyncHandler(async (req, res) => {
 router.put('/:id', asyncHandler(async (req, res) => {
   const userId = req.userId;
   const { id } = req.params;
-  const { name, description, color, status, deadline, position, area_id } = req.body;
+  const { name, description, color, status, deadline, position, area_id, icon } = req.body;
 
   const existing = db.prepare('SELECT * FROM projects WHERE id = ? AND user_id = ?')
     .get(id, userId);
@@ -211,6 +212,10 @@ router.put('/:id', asyncHandler(async (req, res) => {
   if (area_id !== undefined) {
     updates.push('area_id = ?');
     params.push(area_id);
+  }
+  if (icon !== undefined) {
+    updates.push('icon = ?');
+    params.push(icon);
   }
 
   if (updates.length === 0) {

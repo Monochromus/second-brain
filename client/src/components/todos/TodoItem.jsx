@@ -36,8 +36,8 @@ export default function TodoItem({
       ref={setNodeRef}
       style={style}
       className={cn(
-        'group flex items-start gap-3 p-3 bg-surface rounded-lg border border-border',
-        'hover:border-accent/30 transition-all duration-200',
+        'group flex items-start gap-3 p-3 bg-surface rounded-lg',
+        'hover:bg-surface-secondary transition-all duration-200',
         (isDragging || isSortableDragging) && 'opacity-50 shadow-lg',
         todo.status === 'done' && 'opacity-60'
       )}
@@ -86,7 +86,7 @@ export default function TodoItem({
           {todo.due_date && (
             <span
               className={cn(
-                'flex items-center gap-1 text-xs',
+                'flex items-center gap-1 text-xs font-handwriting',
                 isOverdue ? 'text-error' : 'text-text-secondary'
               )}
             >
@@ -102,7 +102,7 @@ export default function TodoItem({
           )}
 
           {showProject && todo.project_name && (
-            <span className="flex items-center gap-1 text-xs text-text-secondary">
+            <span className="flex items-center gap-1 text-xs text-text-secondary font-handwriting">
               <Folder className="w-3 h-3" />
               {todo.project_name}
             </span>

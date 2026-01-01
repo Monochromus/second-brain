@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Briefcase, Heart, Home, BookOpen, Users, DollarSign, Dumbbell, GraduationCap, FolderOpen, Gamepad2, Sparkles, Target, Music, Plane, ShoppingBag, Wrench, Lightbulb } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import CoverImageUploader from '../shared/CoverImageUploader';
 
 const ICONS = [
   { id: 'briefcase', icon: Briefcase, label: 'Arbeit' },
@@ -33,7 +34,8 @@ export default function AreaModal({ isOpen, onClose, area, onSave }) {
     name: '',
     description: '',
     icon: 'folder',
-    color: '#6366F1'
+    color: '#6366F1',
+    cover_image: null
   });
   const [saving, setSaving] = useState(false);
 
@@ -43,14 +45,16 @@ export default function AreaModal({ isOpen, onClose, area, onSave }) {
         name: area.name || '',
         description: area.description || '',
         icon: area.icon || 'folder',
-        color: area.color || '#6366F1'
+        color: area.color || '#6366F1',
+        cover_image: area.cover_image || null
       });
     } else {
       setFormData({
         name: '',
         description: '',
         icon: 'folder',
-        color: '#6366F1'
+        color: '#6366F1',
+        cover_image: null
       });
     }
   }, [area, isOpen]);
@@ -72,8 +76,8 @@ export default function AreaModal({ isOpen, onClose, area, onSave }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-md bg-surface rounded-xl shadow-xl border border-border animate-slide-up">
-        <div className="flex items-center justify-between p-4 border-b border-border">
+      <div className="w-full max-w-md bg-surface rounded-xl shadow-xl border border-border animate-slide-up max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-surface z-10">
           <h2 className="text-lg font-semibold text-text-primary">
             {area ? 'Area bearbeiten' : 'Neue Area'}
           </h2>
@@ -87,9 +91,7 @@ export default function AreaModal({ isOpen, onClose, area, onSave }) {
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-1">
-              Name *
-            </label>
+            <label className="label">Name *</label>
             <input
               type="text"
               value={formData.name}
@@ -101,9 +103,7 @@ export default function AreaModal({ isOpen, onClose, area, onSave }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-1">
-              Beschreibung
-            </label>
+            <label className="label">Beschreibung</label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
@@ -112,10 +112,18 @@ export default function AreaModal({ isOpen, onClose, area, onSave }) {
             />
           </div>
 
+          {/* Cover Image - only when editing existing area */}
+          {area && (
+            <CoverImageUploader
+              areaId={area.id}
+              currentImage={formData.cover_image}
+              onUpload={(cover_image) => setFormData(prev => ({ ...prev, cover_image }))}
+              onRemove={() => setFormData(prev => ({ ...prev, cover_image: null }))}
+            />
+          )}
+
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-2">
-              Icon
-            </label>
+            <label className="label">Icon</label>
             <div className="grid grid-cols-5 gap-2">
               {ICONS.map(({ id, icon: Icon, label }) => (
                 <button
@@ -126,7 +134,7 @@ export default function AreaModal({ isOpen, onClose, area, onSave }) {
                     'p-3 rounded-lg border-2 transition-all flex items-center justify-center',
                     formData.icon === id
                       ? 'border-accent bg-accent/10'
-                      : 'border-border hover:border-accent/50'
+                      : 'border-transparent bg-surface-secondary hover:border-accent/50'
                   )}
                   title={label}
                 >
@@ -137,9 +145,7 @@ export default function AreaModal({ isOpen, onClose, area, onSave }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-2">
-              Farbe
-            </label>
+            <label className="label">Farbe</label>
             <div className="grid grid-cols-5 gap-2">
               {COLORS.map(color => (
                 <button

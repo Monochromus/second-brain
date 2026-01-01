@@ -6,6 +6,8 @@ import {
   Gamepad2, Sparkles, Target, Music, Plane, ShoppingBag, Wrench, Lightbulb,
   FileText, Library, ExternalLink, Tag
 } from 'lucide-react';
+
+const API_BASE = import.meta.env.VITE_API_URL || '';
 import Breadcrumbs from '../components/shared/Breadcrumbs';
 import LoadingSpinner from '../components/shared/LoadingSpinner';
 import ProjectCard from '../components/projects/ProjectCard';
@@ -195,12 +197,34 @@ export default function AreaPage() {
       <Breadcrumbs items={breadcrumbItems} />
 
       {/* Area Header */}
-      <div className="card p-6 mb-6">
-        <div className="flex items-start justify-between">
+      <div className="notebook-section mb-6 overflow-hidden">
+        {/* Cover Image */}
+        {area.cover_image ? (
+          <div className="h-32 w-full -mx-4 -mt-4 mb-4" style={{ marginLeft: 'calc(-1rem)', marginRight: 'calc(-1rem)', marginTop: 'calc(-1rem)', width: 'calc(100% + 2rem)' }}>
+            <img
+              src={`${API_BASE}${area.cover_image}`}
+              alt=""
+              className="w-full h-full object-cover"
+            />
+          </div>
+        ) : (
+          <div
+            className="h-16 w-full -mx-4 -mt-4 mb-4"
+            style={{
+              marginLeft: 'calc(-1rem)',
+              marginRight: 'calc(-1rem)',
+              marginTop: 'calc(-1rem)',
+              width: 'calc(100% + 2rem)',
+              backgroundColor: `${area.color}20`
+            }}
+          />
+        )}
+
+        <div className="flex items-start justify-between p-2">
           <div className="flex items-start gap-4">
             <div
-              className="w-16 h-16 rounded-xl flex items-center justify-center"
-              style={{ backgroundColor: `${area.color}20` }}
+              className="w-16 h-16 rounded-xl flex items-center justify-center -mt-12 border-4 border-surface-secondary bg-surface"
+              style={{ boxShadow: 'var(--shadow-card)' }}
             >
               <IconComponent
                 className="w-8 h-8"
@@ -208,11 +232,11 @@ export default function AreaPage() {
               />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-text-primary">{area.name}</h1>
+              <h1 className="heading-1">{area.name}</h1>
               {area.description && (
                 <p className="text-text-secondary mt-1">{area.description}</p>
               )}
-              <div className="flex items-center gap-4 mt-3 text-sm text-text-secondary flex-wrap">
+              <div className="flex items-center gap-4 mt-3 text-sm text-text-secondary flex-wrap font-sans">
                 <span>{projects.length} Projekte</span>
                 <span>{notes.length} Notizen</span>
                 <span>{resources.length} Ressourcen</span>

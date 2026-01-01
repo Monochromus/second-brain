@@ -1,30 +1,43 @@
 import { Link } from 'react-router-dom';
-import { Folder, CheckCircle, FileText, Calendar, MoreHorizontal, Trash2, Edit, Archive } from 'lucide-react';
+import { CheckCircle, FileText, Calendar, MoreHorizontal, Trash2, Edit, Archive, Folder } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
 import { useState } from 'react';
-import { cn, formatRelativeDate } from '../../lib/utils';
+import { formatRelativeDate } from '../../lib/utils';
+
+// Convert kebab-case to PascalCase for lucide-react
+const toPascalCase = (str) =>
+  str.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('');
 
 export default function ProjectCard({ project, onEdit, onDelete, onArchive }) {
   const [showMenu, setShowMenu] = useState(false);
-
   const progress = project.stats?.progress || 0;
 
+  // Get icon component dynamically
+  const iconName = project.icon || 'folder';
+  const pascalName = toPascalCase(iconName);
+  const IconComponent = LucideIcons[pascalName] || Folder;
+
   return (
-    <div
-      className="card p-4 hover:shadow-md transition-all duration-200 group"
-      style={{ borderTopColor: project.color, borderTopWidth: '3px' }}
-    >
+    <div className="notebook-card p-4 group">
       <div className="flex items-start justify-between mb-3">
         <Link
           to={`/project/${project.id}`}
-          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+          className="flex items-center gap-3 hover:opacity-80 transition-opacity"
         >
           <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ backgroundColor: project.color + '20' }}
+            className="w-10 h-10 rounded-lg flex items-center justify-center"
+            style={{ backgroundColor: project.color + '15' }}
           >
-            <Folder className="w-4 h-4" style={{ color: project.color }} />
+            <IconComponent className="w-5 h-5" style={{ color: project.color }} />
           </div>
-          <h3 className="font-semibold text-text-primary">{project.name}</h3>
+          <div>
+            <h3 className="font-semibold text-text-primary">{project.name}</h3>
+            {project.area_name && (
+              <span className="text-xs text-text-secondary font-handwriting">
+                {project.area_name}
+              </span>
+            )}
+          </div>
         </Link>
 
         <div className="relative">
@@ -47,7 +60,7 @@ export default function ProjectCard({ project, onEdit, onDelete, onArchive }) {
                     onEdit(project);
                     setShowMenu(false);
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-surface-secondary"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-surface-secondary font-sans"
                 >
                   <Edit className="w-4 h-4" />
                   Bearbeiten
@@ -57,7 +70,7 @@ export default function ProjectCard({ project, onEdit, onDelete, onArchive }) {
                     onArchive(project.id);
                     setShowMenu(false);
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-surface-secondary"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-surface-secondary font-sans"
                 >
                   <Archive className="w-4 h-4" />
                   Archivieren
@@ -67,7 +80,7 @@ export default function ProjectCard({ project, onEdit, onDelete, onArchive }) {
                     onDelete(project.id);
                     setShowMenu(false);
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-error hover:bg-surface-secondary"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-error hover:bg-surface-secondary font-sans"
                 >
                   <Trash2 className="w-4 h-4" />
                   Löschen
@@ -84,12 +97,13 @@ export default function ProjectCard({ project, onEdit, onDelete, onArchive }) {
         </p>
       )}
 
+      {/* Progress bar */}
       <div className="mb-3">
-        <div className="flex items-center justify-between text-xs text-text-secondary mb-1">
+        <div className="flex items-center justify-between text-xs text-text-secondary mb-1 font-sans">
           <span>Fortschritt</span>
           <span>{progress}%</span>
         </div>
-        <div className="h-2 bg-surface-secondary rounded-full overflow-hidden">
+        <div className="h-1.5 bg-surface rounded-full overflow-hidden">
           <div
             className="h-full rounded-full transition-all duration-300"
             style={{
@@ -100,17 +114,18 @@ export default function ProjectCard({ project, onEdit, onDelete, onArchive }) {
         </div>
       </div>
 
-      <div className="flex items-center gap-4 text-xs text-text-secondary">
+      {/* Stats */}
+      <div className="flex items-center gap-4 text-xs text-text-secondary font-sans">
         <span className="flex items-center gap-1">
           <CheckCircle className="w-3 h-3" />
-          {project.stats?.completedTodos || 0}/{project.stats?.totalTodos || 0} Todos
+          {project.stats?.completedTodos || 0}/{project.stats?.totalTodos || 0}
         </span>
         <span className="flex items-center gap-1">
           <FileText className="w-3 h-3" />
-          {project.stats?.noteCount || 0} Notizen
+          {project.stats?.noteCount || 0}
         </span>
         {project.deadline && (
-          <span className="flex items-center gap-1">
+          <span className="flex items-center gap-1 ml-auto font-handwriting text-sm">
             <Calendar className="w-3 h-3" />
             {formatRelativeDate(project.deadline)}
           </span>

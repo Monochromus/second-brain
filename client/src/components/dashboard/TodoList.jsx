@@ -85,7 +85,7 @@ export default function TodoList({
 
   if (loading) {
     return (
-      <div className="card p-4">
+      <div className="notebook-section p-4">
         <div className="h-6 w-32 skeleton rounded mb-4" />
         <div className="space-y-3">
           {[1, 2, 3, 4].map((i) => (
@@ -97,13 +97,13 @@ export default function TodoList({
   }
 
   return (
-    <div className="card">
-      <div className="p-4 border-b border-border">
+    <div className="notebook-section">
+      <div className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <CheckCircle className="w-5 h-5 text-accent" />
-            <h2 className="font-semibold text-text-primary">Offene Todos</h2>
-            <span className="text-sm text-text-secondary">({openTodos.length})</span>
+            <h2 className="heading-3">Offene Todos</h2>
+            <span className="text-sm text-text-secondary font-sans">({openTodos.length})</span>
           </div>
           <button onClick={onAdd} className="btn btn-primary btn-sm py-1.5">
             <Plus className="w-4 h-4" />
@@ -111,6 +111,7 @@ export default function TodoList({
           </button>
         </div>
       </div>
+      <div className="notebook-divider mx-4" />
 
       <DndContext
         sensors={sensors}
@@ -158,10 +159,11 @@ export default function TodoList({
       </DndContext>
 
       {doneTodos.length > 0 && (
-        <div className="border-t border-border">
+        <div>
+          <div className="notebook-divider mx-4" />
           <button
             onClick={() => setShowCompleted(!showCompleted)}
-            className="w-full px-4 py-3 flex items-center justify-between text-sm text-text-secondary hover:bg-surface-secondary transition-colors"
+            className="w-full px-4 py-3 flex items-center justify-between text-sm text-text-secondary hover:bg-surface-secondary transition-colors font-sans"
           >
             <span>Erledigte Todos ({doneTodos.length})</span>
             {showCompleted ? (

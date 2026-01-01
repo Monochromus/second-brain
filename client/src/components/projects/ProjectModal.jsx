@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import Modal from '../shared/Modal';
+import IconPicker from '../shared/IconPicker';
 import { format } from 'date-fns';
 import { useAreas } from '../../hooks/useAreas';
-import { FolderOpen } from 'lucide-react';
+import { FolderOpen, Folder } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
 
 const colorOptions = [
   '#D97706',
@@ -15,6 +17,10 @@ const colorOptions = [
   '#65A30D'
 ];
 
+// Convert kebab-case to PascalCase for lucide-react
+const toPascalCase = (str) =>
+  str.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('');
+
 export default function ProjectModal({ isOpen, onClose, project, onSave, defaultAreaId }) {
   const { areas } = useAreas();
   const [formData, setFormData] = useState({
@@ -23,9 +29,11 @@ export default function ProjectModal({ isOpen, onClose, project, onSave, default
     color: '#D97706',
     status: 'active',
     deadline: '',
-    area_id: ''
+    area_id: '',
+    icon: 'folder'
   });
   const [saving, setSaving] = useState(false);
+  const [showIconPicker, setShowIconPicker] = useState(false);
 
   useEffect(() => {
     if (project) {
@@ -35,7 +43,8 @@ export default function ProjectModal({ isOpen, onClose, project, onSave, default
         color: project.color || '#D97706',
         status: project.status || 'active',
         deadline: project.deadline ? format(new Date(project.deadline), 'yyyy-MM-dd') : '',
-        area_id: project.area_id || ''
+        area_id: project.area_id || '',
+        icon: project.icon || 'folder'
       });
     } else {
       setFormData({
@@ -44,7 +53,8 @@ export default function ProjectModal({ isOpen, onClose, project, onSave, default
         color: '#D97706',
         status: 'active',
         deadline: '',
-        area_id: defaultAreaId || ''
+        area_id: defaultAreaId || '',
+        icon: 'folder'
       });
     }
   }, [project, isOpen, defaultAreaId]);
@@ -66,112 +76,140 @@ export default function ProjectModal({ isOpen, onClose, project, onSave, default
     }
   };
 
+  // Get current icon component
+  const IconComponent = LucideIcons[toPascalCase(formData.icon)] || Folder;
+
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={project ? 'Projekt bearbeiten' : 'Neues Projekt'}
-      size="md"
-    >
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="label">Projektname *</label>
-          <input
-            type="text"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="input"
-            placeholder="Name des Projekts"
-            autoFocus
-          />
-        </div>
-
-        <div>
-          <label className="label">Beschreibung</label>
-          <textarea
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            className="input min-h-[100px] resize-none"
-            placeholder="Worum geht es in diesem Projekt?"
-          />
-        </div>
-
-        <div>
-          <label className="label">Area</label>
-          <div className="relative">
-            <FolderOpen className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
-            <select
-              value={formData.area_id}
-              onChange={(e) => setFormData({ ...formData, area_id: e.target.value })}
-              className="input pl-10"
-            >
-              <option value="">Keine Area</option>
-              {areas.map((area) => (
-                <option key={area.id} value={area.id}>
-                  {area.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label className="label">Farbe</label>
-          <div className="flex gap-2">
-            {colorOptions.map((color) => (
-              <button
-                key={color}
-                type="button"
-                onClick={() => setFormData({ ...formData, color })}
-                className={`w-8 h-8 rounded-full border-2 transition-all ${
-                  formData.color === color
-                    ? 'border-text-primary scale-110'
-                    : 'border-transparent'
-                }`}
-                style={{ backgroundColor: color }}
-              />
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
+    <>
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        title={project ? 'Projekt bearbeiten' : 'Neues Projekt'}
+        size="md"
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="label">Status</label>
-            <select
-              value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-              className="input"
-            >
-              <option value="active">Aktiv</option>
-              <option value="completed">Abgeschlossen</option>
-              <option value="archived">Archiviert</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="label">Deadline</label>
+            <label className="label">Projektname *</label>
             <input
-              type="date"
-              value={formData.deadline}
-              onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="input"
+              placeholder="Name des Projekts"
+              autoFocus
             />
           </div>
-        </div>
 
-        <div className="flex justify-end gap-3 pt-4">
-          <button type="button" onClick={onClose} className="btn btn-secondary">
-            Abbrechen
-          </button>
-          <button
-            type="submit"
-            disabled={!formData.name.trim() || saving}
-            className="btn btn-primary"
-          >
-            {saving ? 'Speichere...' : project ? 'Speichern' : 'Erstellen'}
-          </button>
-        </div>
-      </form>
-    </Modal>
+          <div>
+            <label className="label">Beschreibung</label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className="input min-h-[100px] resize-none"
+              placeholder="Worum geht es in diesem Projekt?"
+            />
+          </div>
+
+          <div>
+            <label className="label">Area</label>
+            <div className="relative">
+              <FolderOpen className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
+              <select
+                value={formData.area_id}
+                onChange={(e) => setFormData({ ...formData, area_id: e.target.value })}
+                className="input pl-10"
+              >
+                <option value="">Keine Area</option>
+                {areas.map((area) => (
+                  <option key={area.id} value={area.id}>
+                    {area.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Icon and Color row */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Icon</label>
+              <button
+                type="button"
+                onClick={() => setShowIconPicker(true)}
+                className="w-12 h-12 rounded-lg border-2 border-border hover:border-accent flex items-center justify-center transition-colors"
+                style={{ backgroundColor: formData.color + '15' }}
+              >
+                <IconComponent className="w-6 h-6" style={{ color: formData.color }} />
+              </button>
+            </div>
+
+            <div>
+              <label className="label">Farbe</label>
+              <div className="flex gap-2 flex-wrap">
+                {colorOptions.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, color })}
+                    className={`w-8 h-8 rounded-full border-2 transition-all ${
+                      formData.color === color
+                        ? 'border-text-primary scale-110'
+                        : 'border-transparent'
+                    }`}
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Status</label>
+              <select
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                className="input"
+              >
+                <option value="active">Aktiv</option>
+                <option value="completed">Abgeschlossen</option>
+                <option value="archived">Archiviert</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="label">Deadline</label>
+              <input
+                type="date"
+                value={formData.deadline}
+                onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
+                className="input"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <button type="button" onClick={onClose} className="btn btn-secondary">
+              Abbrechen
+            </button>
+            <button
+              type="submit"
+              disabled={!formData.name.trim() || saving}
+              className="btn btn-primary"
+            >
+              {saving ? 'Speichere...' : project ? 'Speichern' : 'Erstellen'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {showIconPicker && (
+        <IconPicker
+          value={formData.icon}
+          onChange={(icon) => setFormData({ ...formData, icon })}
+          onClose={() => setShowIconPicker(false)}
+        />
+      )}
+    </>
   );
 }

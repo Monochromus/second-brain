@@ -25,7 +25,7 @@ export default function TodayCalendar({ events, loading }) {
 
   if (loading) {
     return (
-      <div className="card p-4">
+      <div className="notebook-section p-4">
         <div className="h-6 w-24 skeleton rounded mb-4" />
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
@@ -43,25 +43,26 @@ export default function TodayCalendar({ events, loading }) {
   };
 
   return (
-    <div className="card">
-      <div className="p-4 border-b border-border">
+    <div className="notebook-section">
+      <div className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Calendar className="w-5 h-5 text-accent" />
-            <h2 className="font-semibold text-text-primary">Heute</h2>
+            <h2 className="heading-3">Heute</h2>
           </div>
           <Link
             to="/calendar"
-            className="text-sm text-text-secondary hover:text-accent flex items-center gap-1"
+            className="text-sm text-text-secondary hover:text-accent flex items-center gap-1 font-sans"
           >
             Alle anzeigen
             <ChevronRight className="w-4 h-4" />
           </Link>
         </div>
-        <p className="text-sm text-text-secondary mt-1">
+        <p className="font-handwriting text-lg text-text-secondary mt-1">
           {format(new Date(), 'EEEE, d. MMMM yyyy', { locale: de })}
         </p>
       </div>
+      <div className="notebook-divider mx-4" />
 
       <div className="p-4">
         {groupedEvents.todayEvents.length > 0 ? (
@@ -101,8 +102,9 @@ export default function TodayCalendar({ events, loading }) {
 
       {groupedEvents.thisWeekEvents.length > 0 && (
         <>
-          <div className="px-4 py-2 border-t border-border">
-            <p className="text-xs font-medium text-text-secondary uppercase tracking-wide">
+          <div className="notebook-divider mx-4" />
+          <div className="px-4 py-2">
+            <p className="text-xs font-medium text-text-secondary uppercase tracking-wide font-sans">
               Diese Woche
             </p>
           </div>
@@ -116,10 +118,10 @@ export default function TodayCalendar({ events, loading }) {
                     className="flex items-center gap-3 py-2 px-2 rounded-md hover:bg-surface-secondary transition-colors"
                   >
                     <div className="text-center min-w-[40px]">
-                      <p className="text-xs text-text-secondary">
+                      <p className="text-xs text-text-secondary font-sans">
                         {format(eventDate, 'EEE', { locale: de })}
                       </p>
-                      <p className="text-lg font-semibold text-text-primary">
+                      <p className="text-xl font-handwriting text-text-primary">
                         {format(eventDate, 'd')}
                       </p>
                     </div>

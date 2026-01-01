@@ -22,6 +22,8 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        serif: ['Literata', 'Georgia', 'Cambria', 'Times New Roman', 'serif'],
+        handwriting: ['Caveat', 'cursive'],
         mono: ['Fira Code', 'monospace'],
       },
       boxShadow: {

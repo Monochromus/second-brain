@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { LayoutGrid, Plus, Search, Filter } from 'lucide-react';
+import { LayoutGrid, Plus, Search } from 'lucide-react';
 import { useProjects } from '../hooks/useProjects';
 import { useAgent } from '../hooks/useAgent';
 import ProjectCard from '../components/projects/ProjectCard';
@@ -88,8 +88,8 @@ export default function ProjectsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
-            <LayoutGrid className="w-6 h-6 text-accent" />
+          <h1 className="heading-1 flex items-center gap-3 mb-1">
+            <LayoutGrid className="w-7 h-7 text-accent" />
             Projekte
           </h1>
           <p className="text-text-secondary">
@@ -105,8 +105,10 @@ export default function ProjectsPage() {
         </button>
       </div>
 
+      <div className="notebook-divider mb-6" />
+
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row gap-4 mb-6 font-sans">
         {/* Status Tabs */}
         <div className="flex bg-surface-secondary rounded-lg p-1">
           {statusTabs.map(tab => (
@@ -132,14 +134,14 @@ export default function ProjectsPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Projekte suchen..."
-            className="w-full pl-10 pr-4 py-2 bg-surface-secondary border border-transparent rounded-lg text-sm focus:outline-none focus:border-accent"
+            className="input pl-10"
           />
         </div>
       </div>
 
       {/* Projects Grid */}
       {filteredProjects.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredProjects.map(project => (
             <ProjectCard
               key={project.id}
@@ -151,9 +153,9 @@ export default function ProjectsPage() {
           ))}
         </div>
       ) : (
-        <div className="card p-12 text-center">
+        <div className="notebook-section text-center py-12">
           <LayoutGrid className="w-12 h-12 mx-auto text-text-secondary opacity-50 mb-4" />
-          <h3 className="text-lg font-semibold text-text-primary mb-2">
+          <h3 className="heading-3 mb-2">
             {searchQuery ? 'Keine Projekte gefunden' : 'Keine Projekte'}
           </h3>
           <p className="text-text-secondary mb-4">
@@ -177,26 +179,29 @@ export default function ProjectsPage() {
 
       {/* Stats */}
       {projects.length > 0 && (
-        <div className="mt-8 grid grid-cols-3 gap-4">
-          <div className="card p-4 text-center">
-            <p className="text-2xl font-bold text-text-primary">
-              {projects.filter(p => p.status === 'active').length}
-            </p>
-            <p className="text-sm text-text-secondary">Aktive Projekte</p>
+        <>
+          <div className="notebook-divider mt-8 mb-6" />
+          <div className="grid grid-cols-3 gap-6">
+            <div className="text-center">
+              <p className="text-3xl font-semibold text-text-primary">
+                {projects.filter(p => p.status === 'active').length}
+              </p>
+              <p className="text-sm text-text-secondary font-sans">Aktive Projekte</p>
+            </div>
+            <div className="text-center">
+              <p className="text-3xl font-semibold text-success">
+                {projects.filter(p => p.status === 'completed').length}
+              </p>
+              <p className="text-sm text-text-secondary font-sans">Abgeschlossen</p>
+            </div>
+            <div className="text-center">
+              <p className="text-3xl font-semibold text-text-secondary">
+                {projects.reduce((acc, p) => acc + (p.stats?.totalTodos || 0), 0)}
+              </p>
+              <p className="text-sm text-text-secondary font-sans">Todos gesamt</p>
+            </div>
           </div>
-          <div className="card p-4 text-center">
-            <p className="text-2xl font-bold text-success">
-              {projects.filter(p => p.status === 'completed').length}
-            </p>
-            <p className="text-sm text-text-secondary">Abgeschlossen</p>
-          </div>
-          <div className="card p-4 text-center">
-            <p className="text-2xl font-bold text-text-secondary">
-              {projects.reduce((acc, p) => acc + (p.todoCount || 0), 0)}
-            </p>
-            <p className="text-sm text-text-secondary">Todos gesamt</p>
-          </div>
-        </div>
+        </>
       )}
 
       {/* Project Modal */}

@@ -4,7 +4,7 @@ import NoteCard from '../notes/NoteCard';
 export default function NotesGrid({ notes, loading, onEdit, onDelete, onTogglePin, onAdd }) {
   if (loading) {
     return (
-      <div className="card p-4">
+      <div className="notebook-section p-4">
         <div className="h-6 w-24 skeleton rounded mb-4" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
@@ -16,13 +16,13 @@ export default function NotesGrid({ notes, loading, onEdit, onDelete, onTogglePi
   }
 
   return (
-    <div className="card">
-      <div className="p-4 border-b border-border">
+    <div className="notebook-section">
+      <div className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-accent" />
-            <h2 className="font-semibold text-text-primary">Notizen</h2>
-            <span className="text-sm text-text-secondary">({notes.length})</span>
+            <h2 className="heading-3">Notizen</h2>
+            <span className="text-sm text-text-secondary font-sans">({notes.length})</span>
           </div>
           <button onClick={onAdd} className="btn btn-primary btn-sm py-1.5">
             <Plus className="w-4 h-4" />
@@ -30,6 +30,7 @@ export default function NotesGrid({ notes, loading, onEdit, onDelete, onTogglePi
           </button>
         </div>
       </div>
+      <div className="notebook-divider mx-4" />
 
       <div className="p-4">
         {notes.length > 0 ? (
@@ -46,11 +47,11 @@ export default function NotesGrid({ notes, loading, onEdit, onDelete, onTogglePi
             {notes.length > 8 && (
               <div
                 onClick={onAdd}
-                className="card p-4 flex items-center justify-center cursor-pointer border-dashed hover:border-accent hover:bg-surface-secondary transition-all"
+                className="notebook-card p-4 flex items-center justify-center cursor-pointer border-dashed hover:border-accent hover:bg-surface-secondary transition-all"
               >
                 <div className="text-center">
                   <Plus className="w-8 h-8 mx-auto text-text-secondary mb-2" />
-                  <p className="text-sm text-text-secondary">
+                  <p className="text-sm text-text-secondary font-sans">
                     +{notes.length - 8} weitere
                   </p>
                 </div>

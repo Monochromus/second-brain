@@ -1,9 +1,18 @@
 const express = require('express');
+const path = require('path');
+const fs = require('fs');
 const { requireAuth } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { upload, handleMulterError } = require('../middleware/upload');
 const db = require('../config/database');
 
 const router = express.Router();
+
+// Ensure areas upload directory exists
+const areasUploadDir = path.join(__dirname, '../../uploads/areas');
+if (!fs.existsSync(areasUploadDir)) {
+  fs.mkdirSync(areasUploadDir, { recursive: true });
+}
 
 router.use(requireAuth);
 
@@ -157,6 +166,64 @@ router.post('/reorder', asyncHandler(async (req, res) => {
   }
 
   res.json({ success: true });
+}));
+
+// Upload cover image for area
+router.post('/:id/cover', upload.single('cover'), handleMulterError, asyncHandler(async (req, res) => {
+  const userId = req.userId;
+  const { id } = req.params;
+
+  const existing = db.prepare('SELECT * FROM areas WHERE id = ? AND user_id = ?').get(id, userId);
+  if (!existing) {
+    return res.status(404).json({ error: 'Area nicht gefunden' });
+  }
+
+  if (!req.file) {
+    return res.status(400).json({ error: 'Kein Bild hochgeladen' });
+  }
+
+  // Delete old cover if exists
+  if (existing.cover_image) {
+    const oldPath = path.join(__dirname, '../../', existing.cover_image);
+    if (fs.existsSync(oldPath)) {
+      fs.unlinkSync(oldPath);
+    }
+  }
+
+  // Save new cover image
+  const ext = req.file.mimetype.split('/')[1];
+  const filename = `area-${id}-${Date.now()}.${ext}`;
+  const filepath = path.join(areasUploadDir, filename);
+  fs.writeFileSync(filepath, req.file.buffer);
+
+  const cover_image = `/uploads/areas/${filename}`;
+
+  db.prepare('UPDATE areas SET cover_image = ? WHERE id = ?').run(cover_image, id);
+
+  const area = db.prepare('SELECT * FROM areas WHERE id = ?').get(id);
+  res.json(area);
+}));
+
+// Delete cover image
+router.delete('/:id/cover', asyncHandler(async (req, res) => {
+  const userId = req.userId;
+  const { id } = req.params;
+
+  const existing = db.prepare('SELECT * FROM areas WHERE id = ? AND user_id = ?').get(id, userId);
+  if (!existing) {
+    return res.status(404).json({ error: 'Area nicht gefunden' });
+  }
+
+  if (existing.cover_image) {
+    const oldPath = path.join(__dirname, '../../', existing.cover_image);
+    if (fs.existsSync(oldPath)) {
+      fs.unlinkSync(oldPath);
+    }
+    db.prepare('UPDATE areas SET cover_image = NULL WHERE id = ?').run(id);
+  }
+
+  const area = db.prepare('SELECT * FROM areas WHERE id = ?').get(id);
+  res.json(area);
 }));
 
 module.exports = router;

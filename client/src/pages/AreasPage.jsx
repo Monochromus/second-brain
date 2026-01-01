@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Briefcase, Heart, Home, BookOpen, Users, DollarSign,
   Dumbbell, GraduationCap, Plus, MoreVertical, Archive,
@@ -10,7 +10,8 @@ import { useAreas } from '../hooks/useAreas';
 import { useAgent } from '../hooks/useAgent';
 import AreaModal from '../components/areas/AreaModal';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
-import { cn } from '../lib/utils';
+
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 const ICONS = {
   briefcase: Briefcase,
@@ -44,9 +45,7 @@ export default function AreasPage() {
     archiveArea
   } = useAreas();
 
-  const refreshCallbacks = useMemo(() => ({
-    // Refresh wenn Agent Areas ändert
-  }), []);
+  const refreshCallbacks = useMemo(() => ({}), []);
   useAgent(refreshCallbacks);
 
   const [modal, setModal] = useState({ open: false, area: null });
@@ -54,7 +53,6 @@ export default function AreasPage() {
   const [menuOpen, setMenuOpen] = useState(null);
 
   const handleAreaClick = (areaId, e) => {
-    // Don't navigate if clicking on menu button
     if (e.target.closest('button')) return;
     navigate(`/area/${areaId}`);
   };
@@ -95,7 +93,7 @@ export default function AreasPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">Areas</h1>
+          <h1 className="heading-1 mb-1">Areas</h1>
           <p className="text-text-secondary">Deine Verantwortungsbereiche nach dem PARA-Prinzip</p>
         </div>
         <button
@@ -107,12 +105,14 @@ export default function AreasPage() {
         </button>
       </div>
 
+      <div className="notebook-divider mb-6" />
+
       {areas.length === 0 ? (
-        <div className="card p-12 text-center">
+        <div className="notebook-section text-center py-12">
           <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-surface-secondary flex items-center justify-center">
             <FolderOpen className="w-8 h-8 text-text-secondary" />
           </div>
-          <h2 className="text-lg font-semibold text-text-primary mb-2">
+          <h2 className="heading-3 mb-2">
             Keine Areas vorhanden
           </h2>
           <p className="text-text-secondary mb-6 max-w-md mx-auto">
@@ -128,7 +128,7 @@ export default function AreasPage() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {areas.map(area => {
             const IconComponent = ICONS[area.icon] || FolderOpen;
 
@@ -136,82 +136,105 @@ export default function AreasPage() {
               <div
                 key={area.id}
                 onClick={(e) => handleAreaClick(area.id, e)}
-                className="card p-5 hover:shadow-md transition-shadow group cursor-pointer"
+                className="notebook-card group cursor-pointer overflow-hidden p-0"
               >
-                <div className="flex items-start justify-between mb-3">
-                  <div
-                    className="w-12 h-12 rounded-xl flex items-center justify-center"
-                    style={{ backgroundColor: `${area.color}20` }}
-                  >
-                    <IconComponent
-                      className="w-6 h-6"
-                      style={{ color: area.color }}
+                {/* Cover Image or Color Header */}
+                {area.cover_image ? (
+                  <div className="h-24 w-full">
+                    <img
+                      src={`${API_BASE}${area.cover_image}`}
+                      alt=""
+                      className="w-full h-full object-cover"
                     />
                   </div>
-                  <div className="relative">
-                    <button
-                      onClick={() => setMenuOpen(menuOpen === area.id ? null : area.id)}
-                      className="p-1.5 rounded-lg text-text-secondary hover:bg-surface-secondary opacity-0 group-hover:opacity-100 transition-all"
-                    >
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
-                    {menuOpen === area.id && (
-                      <>
-                        <div
-                          className="fixed inset-0 z-10"
-                          onClick={() => setMenuOpen(null)}
-                        />
-                        <div className="absolute right-0 top-full mt-1 w-40 bg-surface border border-border rounded-lg shadow-lg py-1 z-20">
-                          <button
-                            onClick={() => {
-                              setModal({ open: true, area });
-                              setMenuOpen(null);
-                            }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-surface-secondary"
-                          >
-                            <Pencil className="w-4 h-4" />
-                            Bearbeiten
-                          </button>
-                          <button
-                            onClick={() => handleArchive(area.id)}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-surface-secondary"
-                          >
-                            <Archive className="w-4 h-4" />
-                            Archivieren
-                          </button>
-                          <button
-                            onClick={() => {
-                              setDeleteConfirm({ open: true, id: area.id });
-                              setMenuOpen(null);
-                            }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-error hover:bg-surface-secondary"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            Löschen
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <h3 className="font-semibold text-text-primary mb-1">{area.name}</h3>
-                {area.description && (
-                  <p className="text-sm text-text-secondary line-clamp-2 mb-3">
-                    {area.description}
-                  </p>
+                ) : (
+                  <div
+                    className="h-16 w-full"
+                    style={{ backgroundColor: `${area.color}20` }}
+                  />
                 )}
 
-                <div className="flex items-center gap-3 text-xs text-text-secondary">
-                  {area.project_count > 0 && (
-                    <span>{area.project_count} Projekte</span>
+                <div className="p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div
+                      className="w-12 h-12 rounded-xl flex items-center justify-center -mt-8 border-4 border-surface-secondary bg-surface"
+                      style={{ boxShadow: 'var(--shadow-card)' }}
+                    >
+                      <IconComponent
+                        className="w-6 h-6"
+                        style={{ color: area.color }}
+                      />
+                    </div>
+                    <div className="relative">
+                      <button
+                        onClick={() => setMenuOpen(menuOpen === area.id ? null : area.id)}
+                        className="p-1.5 rounded-lg text-text-secondary hover:bg-surface-secondary opacity-0 group-hover:opacity-100 transition-all"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                      {menuOpen === area.id && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-10"
+                            onClick={() => setMenuOpen(null)}
+                          />
+                          <div className="absolute right-0 top-full mt-1 w-40 bg-surface border border-border rounded-lg shadow-lg py-1 z-20">
+                            <button
+                              onClick={() => {
+                                setModal({ open: true, area });
+                                setMenuOpen(null);
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-surface-secondary font-sans"
+                            >
+                              <Pencil className="w-4 h-4" />
+                              Bearbeiten
+                            </button>
+                            <button
+                              onClick={() => handleArchive(area.id)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-surface-secondary font-sans"
+                            >
+                              <Archive className="w-4 h-4" />
+                              Archivieren
+                            </button>
+                            <button
+                              onClick={() => {
+                                setDeleteConfirm({ open: true, id: area.id });
+                                setMenuOpen(null);
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-error hover:bg-surface-secondary font-sans"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Löschen
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <h3 className="font-semibold text-text-primary mb-1">{area.name}</h3>
+                  {area.description && (
+                    <p className="text-sm text-text-secondary line-clamp-2 mb-3">
+                      {area.description}
+                    </p>
                   )}
-                  {area.todo_count > 0 && (
-                    <span>{area.todo_count} Todos</span>
-                  )}
-                  {area.note_count > 0 && (
-                    <span>{area.note_count} Notizen</span>
-                  )}
+
+                  <div className="notebook-divider !my-3" />
+
+                  <div className="flex items-center gap-3 text-xs text-text-secondary font-sans">
+                    {area.project_count > 0 && (
+                      <span>{area.project_count} Projekte</span>
+                    )}
+                    {area.todo_count > 0 && (
+                      <span>{area.todo_count} Todos</span>
+                    )}
+                    {area.note_count > 0 && (
+                      <span>{area.note_count} Notizen</span>
+                    )}
+                    {!area.project_count && !area.todo_count && !area.note_count && (
+                      <span className="font-handwriting text-sm">Leer</span>
+                    )}
+                  </div>
                 </div>
               </div>
             );

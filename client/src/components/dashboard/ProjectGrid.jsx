@@ -5,7 +5,7 @@ import ProjectCard from '../projects/ProjectCard';
 export default function ProjectGrid({ projects, loading, onEdit, onDelete, onArchive, onAdd }) {
   if (loading) {
     return (
-      <div className="card p-4">
+      <div className="notebook-section p-4">
         <div className="h-6 w-24 skeleton rounded mb-4" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[1, 2].map((i) => (
@@ -17,13 +17,13 @@ export default function ProjectGrid({ projects, loading, onEdit, onDelete, onArc
   }
 
   return (
-    <div className="card">
-      <div className="p-4 border-b border-border">
+    <div className="notebook-section">
+      <div className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Folder className="w-5 h-5 text-accent" />
-            <h2 className="font-semibold text-text-primary">Projekte</h2>
-            <span className="text-sm text-text-secondary">({projects.length})</span>
+            <h2 className="heading-3">Projekte</h2>
+            <span className="text-sm text-text-secondary font-sans">({projects.length})</span>
           </div>
           <button onClick={onAdd} className="btn btn-primary btn-sm py-1.5">
             <Plus className="w-4 h-4" />
@@ -31,6 +31,7 @@ export default function ProjectGrid({ projects, loading, onEdit, onDelete, onArc
           </button>
         </div>
       </div>
+      <div className="notebook-divider mx-4" />
 
       <div className="p-4">
         {projects.length > 0 ? (
