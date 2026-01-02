@@ -41,6 +41,7 @@ export function useAgent(refreshCallbacks = {}) {
     lastResponse: context.lastResponse,
     history: context.history,
     clearHistory: context.clearHistory,
+    clearLastResponse: context.clearLastResponse,
     // Vision/Extraction
     visionResponse: context.visionResponse,
     extractedData: context.extractedData,

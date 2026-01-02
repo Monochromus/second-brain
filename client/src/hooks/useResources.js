@@ -58,7 +58,6 @@ export function useResources(options = {}) {
     try {
       const resource = await api.put(`/resources/${id}`, data);
       setResources(prev => prev.map(r => r.id === id ? resource : r));
-      toast.success('Ressource aktualisiert');
       fetchCategories();
       return resource;
     } catch (err) {

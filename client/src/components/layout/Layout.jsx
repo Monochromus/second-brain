@@ -11,6 +11,7 @@ export default function Layout() {
     sendWithImages,
     isProcessing,
     lastResponse,
+    clearLastResponse,
     visionResponse,
     extractedData,
     confirmExtraction,
@@ -28,6 +29,7 @@ export default function Layout() {
           onSendWithImages={sendWithImages}
           isProcessing={isProcessing}
           lastResponse={lastResponse}
+          onClearResponse={clearLastResponse}
           visionResponse={visionResponse}
           extractedData={extractedData}
           onConfirmExtraction={confirmExtraction}

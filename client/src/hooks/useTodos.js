@@ -48,7 +48,6 @@ export function useTodos(options = {}) {
     try {
       const response = await api.put(`/todos/${id}`, data);
       setTodos((prev) => prev.map((t) => (t.id === id ? response.todo : t)));
-      toast.success('Todo aktualisiert');
       return response.todo;
     } catch (err) {
       toast.error(err.message);

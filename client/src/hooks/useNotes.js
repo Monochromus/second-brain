@@ -47,7 +47,6 @@ export function useNotes(options = {}) {
     try {
       const response = await api.put(`/notes/${id}`, data);
       setNotes((prev) => prev.map((n) => (n.id === id ? response.note : n)));
-      toast.success('Notiz gespeichert');
       return response.note;
     } catch (err) {
       toast.error(err.message);

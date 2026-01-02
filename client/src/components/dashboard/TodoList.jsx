@@ -105,9 +105,12 @@ export default function TodoList({
             <h2 className="heading-3">Offene Todos</h2>
             <span className="text-sm text-text-secondary font-sans">({openTodos.length})</span>
           </div>
-          <button onClick={onAdd} className="btn btn-primary btn-sm py-1.5">
-            <Plus className="w-4 h-4" />
-            Neu
+          <button
+            onClick={onAdd}
+            className="w-10 h-10 rounded-full bg-accent text-white flex items-center justify-center hover:bg-accent/90 transition-colors"
+            title="Neues Todo"
+          >
+            <Plus className="w-5 h-5" />
           </button>
         </div>
       </div>
@@ -165,7 +168,7 @@ export default function TodoList({
             onClick={() => setShowCompleted(!showCompleted)}
             className="w-full px-4 py-3 flex items-center justify-between text-sm text-text-secondary hover:bg-surface-secondary transition-colors font-sans"
           >
-            <span>Erledigte Todos ({doneTodos.length})</span>
+            <span>Erledigt ({doneTodos.length})</span>
             {showCompleted ? (
               <ChevronUp className="w-4 h-4" />
             ) : (

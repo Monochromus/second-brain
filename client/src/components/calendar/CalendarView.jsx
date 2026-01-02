@@ -97,9 +97,12 @@ export default function CalendarView({
               >
                 Heute
               </button>
-              <button onClick={onAddEvent} className="btn btn-primary">
-                <Plus className="w-4 h-4" />
-                Termin
+              <button
+                onClick={onAddEvent}
+                className="w-10 h-10 rounded-full bg-accent text-white flex items-center justify-center hover:bg-accent/90 transition-colors"
+                title="Neuer Termin"
+              >
+                <Plus className="w-5 h-5" />
               </button>
             </div>
           </div>

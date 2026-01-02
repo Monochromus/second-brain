@@ -44,7 +44,6 @@ export function useProjects(options = {}) {
     try {
       const response = await api.put(`/projects/${id}`, data);
       setProjects((prev) => prev.map((p) => (p.id === id ? response.project : p)));
-      toast.success('Projekt aktualisiert');
       return response.project;
     } catch (err) {
       toast.error(err.message);
@@ -90,6 +89,7 @@ export function useProject(id) {
   const [todos, setTodos] = useState([]);
   const [notes, setNotes] = useState([]);
   const [events, setEvents] = useState([]);
+  const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -102,6 +102,7 @@ export function useProject(id) {
       setTodos(response.todos);
       setNotes(response.notes);
       setEvents(response.events);
+      setResources(response.resources || []);
       setError(null);
     } catch (err) {
       setError(err.message);
@@ -119,6 +120,7 @@ export function useProject(id) {
     todos,
     notes,
     events,
+    resources,
     loading,
     error,
     refetch: fetchProject

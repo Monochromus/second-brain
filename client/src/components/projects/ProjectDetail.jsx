@@ -1,15 +1,17 @@
 import { useState } from 'react';
-import { ArrowLeft, Calendar, CheckCircle, FileText, Edit, Plus } from 'lucide-react';
+import { ArrowLeft, Calendar, CheckCircle, FileText, Edit, Plus, Link2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn, formatDate, formatRelativeDate } from '../../lib/utils';
 import TodoItem from '../todos/TodoItem';
 import NoteCard from '../notes/NoteCard';
+import ResourceCard from '../resources/ResourceCard';
 
 export default function ProjectDetail({
   project,
   todos,
   notes,
   events,
+  resources,
   onEditProject,
   onToggleTodo,
   onEditTodo,
@@ -17,8 +19,11 @@ export default function ProjectDetail({
   onEditNote,
   onDeleteNote,
   onToggleNotePin,
+  onEditResource,
+  onDeleteResource,
   onAddTodo,
-  onAddNote
+  onAddNote,
+  onAddResource
 }) {
   const [activeTab, setActiveTab] = useState('todos');
 
@@ -27,6 +32,7 @@ export default function ProjectDetail({
   const tabs = [
     { id: 'todos', label: 'Todos', icon: CheckCircle, count: todos?.length || 0 },
     { id: 'notes', label: 'Notizen', icon: FileText, count: notes?.length || 0 },
+    { id: 'resources', label: 'Ressourcen', icon: Link2, count: resources?.length || 0 },
     { id: 'events', label: 'Termine', icon: Calendar, count: events?.length || 0 }
   ];
 
@@ -129,9 +135,12 @@ export default function ProjectDetail({
       {activeTab === 'todos' && (
         <div>
           <div className="flex justify-end mb-4">
-            <button onClick={onAddTodo} className="btn btn-primary">
-              <Plus className="w-4 h-4" />
-              Neues Todo
+            <button
+              onClick={onAddTodo}
+              className="w-10 h-10 rounded-full bg-accent text-white flex items-center justify-center hover:bg-accent/90 transition-colors"
+              title="Neues Todo"
+            >
+              <Plus className="w-5 h-5" />
             </button>
           </div>
           {todos && todos.length > 0 ? (
@@ -159,9 +168,12 @@ export default function ProjectDetail({
       {activeTab === 'notes' && (
         <div>
           <div className="flex justify-end mb-4">
-            <button onClick={onAddNote} className="btn btn-primary">
-              <Plus className="w-4 h-4" />
-              Neue Notiz
+            <button
+              onClick={onAddNote}
+              className="w-10 h-10 rounded-full bg-accent text-white flex items-center justify-center hover:bg-accent/90 transition-colors"
+              title="Neue Notiz"
+            >
+              <Plus className="w-5 h-5" />
             </button>
           </div>
           {notes && notes.length > 0 ? (
@@ -180,6 +192,37 @@ export default function ProjectDetail({
             <div className="text-center py-12 text-text-secondary">
               <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
               <p>Keine Notizen in diesem Projekt</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'resources' && (
+        <div>
+          <div className="flex justify-end mb-4">
+            <button
+              onClick={onAddResource}
+              className="w-10 h-10 rounded-full bg-accent text-white flex items-center justify-center hover:bg-accent/90 transition-colors"
+              title="Neue Ressource"
+            >
+              <Plus className="w-5 h-5" />
+            </button>
+          </div>
+          {resources && resources.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {resources.map((resource) => (
+                <ResourceCard
+                  key={resource.id}
+                  resource={resource}
+                  onEdit={onEditResource}
+                  onDelete={onDeleteResource}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-text-secondary">
+              <Link2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>Keine Ressourcen in diesem Projekt</p>
             </div>
           )}
         </div>

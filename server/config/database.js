@@ -275,6 +275,15 @@ function runMigrations() {
     console.log('Migration: Added cover_image to areas');
   }
 
+  // Check and add project_id to resources
+  try {
+    db.prepare('SELECT project_id FROM resources LIMIT 1').get();
+  } catch {
+    db.exec('ALTER TABLE resources ADD COLUMN project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_resources_project ON resources(project_id)');
+    console.log('Migration: Added project_id to resources');
+  }
+
   // Create captures table if not exists
   db.exec(`
     CREATE TABLE IF NOT EXISTS captures (

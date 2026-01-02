@@ -84,7 +84,6 @@ export default function AreaPage() {
   const handleSaveArea = async (data) => {
     try {
       await api.put(`/areas/${id}`, data);
-      toast.success('Area aktualisiert');
       fetchArea();
     } catch (err) {
       toast.error(err.message);
@@ -105,12 +104,12 @@ export default function AreaPage() {
     try {
       if (projectModal.project) {
         await api.put(`/projects/${projectModal.project.id}`, data);
-        toast.success('Projekt aktualisiert');
+        fetchArea();
       } else {
         await api.post('/projects', { ...data, area_id: parseInt(id) });
         toast.success('Projekt erstellt');
+        fetchArea();
       }
-      fetchArea();
     } catch (err) {
       toast.error(err.message);
     }
@@ -120,12 +119,12 @@ export default function AreaPage() {
     try {
       if (noteModal.note) {
         await api.put(`/notes/${noteModal.note.id}`, { ...data, area_id: parseInt(id) });
-        toast.success('Notiz aktualisiert');
+        fetchArea();
       } else {
         await api.post('/notes', { ...data, area_id: parseInt(id) });
         toast.success('Notiz erstellt');
+        fetchArea();
       }
-      fetchArea();
     } catch (err) {
       toast.error(err.message);
     }
@@ -157,12 +156,12 @@ export default function AreaPage() {
     try {
       if (resourceModal.resource) {
         await api.put(`/resources/${resourceModal.resource.id}`, { ...data, area_id: parseInt(id) });
-        toast.success('Ressource aktualisiert');
+        fetchArea();
       } else {
         await api.post('/resources', { ...data, area_id: parseInt(id) });
         toast.success('Ressource erstellt');
+        fetchArea();
       }
-      fetchArea();
     } catch (err) {
       toast.error(err.message);
     }
@@ -471,6 +470,7 @@ export default function AreaPage() {
         onClose={() => setNoteModal({ open: false, note: null })}
         note={noteModal.note}
         onSave={handleSaveNote}
+        defaultAreaId={parseInt(id)}
       />
 
       <ResourceModal

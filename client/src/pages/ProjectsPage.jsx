@@ -98,10 +98,10 @@ export default function ProjectsPage() {
         </div>
         <button
           onClick={() => setProjectModal({ open: true, project: null })}
-          className="btn btn-primary"
+          className="w-10 h-10 rounded-full bg-accent text-white flex items-center justify-center hover:bg-accent/90 transition-colors"
+          title="Neues Projekt"
         >
-          <Plus className="w-4 h-4" />
-          Neues Projekt
+          <Plus className="w-5 h-5" />
         </button>
       </div>
 
@@ -165,15 +165,6 @@ export default function ProjectsPage() {
                 ? 'Erstelle dein erstes Projekt, um loszulegen.'
                 : 'Keine Projekte in dieser Kategorie.'}
           </p>
-          {!searchQuery && activeTab === 'active' && (
-            <button
-              onClick={() => setProjectModal({ open: true, project: null })}
-              className="btn btn-primary"
-            >
-              <Plus className="w-4 h-4" />
-              Projekt erstellen
-            </button>
-          )}
         </div>
       )}
 

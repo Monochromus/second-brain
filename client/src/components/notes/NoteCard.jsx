@@ -1,4 +1,4 @@
-import { Pin, MoreHorizontal, Trash2, Edit, Folder } from 'lucide-react';
+import { Pin, MoreHorizontal, Trash2, Edit, Folder, FolderOpen } from 'lucide-react';
 import { useState } from 'react';
 import { cn, stripHtml, truncate, formatTimeAgo } from '../../lib/utils';
 
@@ -80,6 +80,36 @@ export default function NoteCard({ note, onEdit, onDelete, onTogglePin }) {
         <p className="text-xs text-text-secondary line-clamp-3 mb-3">
           {contentPreview}
         </p>
+      )}
+
+      {/* Project/Area badge */}
+      {(note.project_name || note.area_name) && (
+        <div className="flex items-center gap-1.5 mb-2">
+          {note.project_name && (
+            <span
+              className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
+              style={{
+                backgroundColor: note.project_color ? `${note.project_color}20` : 'var(--surface-secondary)',
+                color: note.project_color || 'var(--text-secondary)'
+              }}
+            >
+              <Folder className="w-3 h-3" />
+              {note.project_name}
+            </span>
+          )}
+          {note.area_name && (
+            <span
+              className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
+              style={{
+                backgroundColor: note.area_color ? `${note.area_color}20` : 'var(--surface-secondary)',
+                color: note.area_color || 'var(--text-secondary)'
+              }}
+            >
+              <FolderOpen className="w-3 h-3" />
+              {note.area_name}
+            </span>
+          )}
+        </div>
       )}
 
       <div className="flex items-center justify-between mt-auto">

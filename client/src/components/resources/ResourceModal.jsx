@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { X, Plus, Tag } from 'lucide-react';
+import { useAutosave } from '../../hooks/useAutosave';
 
 export default function ResourceModal({ isOpen, onClose, resource, onSave, categories = [] }) {
   const [formData, setFormData] = useState({
@@ -11,6 +12,14 @@ export default function ResourceModal({ isOpen, onClose, resource, onSave, categ
   });
   const [tagInput, setTagInput] = useState('');
   const [saving, setSaving] = useState(false);
+  const isEditing = Boolean(resource);
+
+  const handleAutosave = useCallback(async (data) => {
+    if (!data.title.trim()) return;
+    await onSave(data);
+  }, [onSave]);
+
+  const { saveImmediately } = useAutosave(handleAutosave, 500);
 
   useEffect(() => {
     if (resource) {
@@ -32,6 +41,18 @@ export default function ResourceModal({ isOpen, onClose, resource, onSave, categ
     }
     setTagInput('');
   }, [resource, isOpen]);
+
+  const handleChange = (field, value) => {
+    const newData = { ...formData, [field]: value };
+    setFormData(newData);
+  };
+
+  const handleClose = async () => {
+    if (isEditing && formData.title.trim()) {
+      await saveImmediately(formData);
+    }
+    onClose();
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -71,14 +92,18 @@ export default function ResourceModal({ isOpen, onClose, resource, onSave, categ
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-lg bg-surface rounded-xl shadow-xl border border-border animate-slide-up max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={handleClose}
+      />
+      <div className="relative w-full max-w-lg bg-surface rounded-xl shadow-xl border border-border animate-slide-up max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-surface">
           <h2 className="text-lg font-semibold text-text-primary">
             {resource ? 'Ressource bearbeiten' : 'Neue Ressource'}
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-1.5 rounded-lg text-text-secondary hover:bg-surface-secondary"
           >
             <X className="w-5 h-5" />
@@ -93,8 +118,8 @@ export default function ResourceModal({ isOpen, onClose, resource, onSave, categ
             <input
               type="text"
               value={formData.title}
-              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-              className="input"
+              onChange={(e) => handleChange('title', e.target.value)}
+                            className="input"
               placeholder="z.B. Rezept für Pasta, Git Cheatsheet"
               required
             />
@@ -106,8 +131,8 @@ export default function ResourceModal({ isOpen, onClose, resource, onSave, categ
             </label>
             <textarea
               value={formData.content}
-              onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
-              className="input min-h-[120px] resize-none"
+              onChange={(e) => handleChange('content', e.target.value)}
+                            className="input min-h-[120px] resize-none"
               placeholder="Notizen, Anleitungen, Informationen..."
             />
           </div>
@@ -119,8 +144,8 @@ export default function ResourceModal({ isOpen, onClose, resource, onSave, categ
             <input
               type="url"
               value={formData.url}
-              onChange={(e) => setFormData(prev => ({ ...prev, url: e.target.value }))}
-              className="input"
+              onChange={(e) => handleChange('url', e.target.value)}
+                            className="input"
               placeholder="https://..."
             />
           </div>
@@ -132,8 +157,8 @@ export default function ResourceModal({ isOpen, onClose, resource, onSave, categ
             <input
               type="text"
               value={formData.category}
-              onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-              className="input"
+              onChange={(e) => handleChange('category', e.target.value)}
+                            className="input"
               placeholder="z.B. Rezepte, Programmierung, Reisen"
               list="categories"
             />
@@ -187,21 +212,23 @@ export default function ResourceModal({ isOpen, onClose, resource, onSave, categ
             )}
           </div>
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex justify-end gap-3 pt-4">
             <button
               type="button"
-              onClick={onClose}
-              className="btn btn-secondary flex-1"
+              onClick={handleClose}
+              className="btn btn-secondary"
             >
-              Abbrechen
+              {isEditing ? 'Schließen' : 'Abbrechen'}
             </button>
-            <button
-              type="submit"
-              disabled={saving || !formData.title.trim()}
-              className="btn btn-primary flex-1"
-            >
-              {saving ? 'Speichern...' : 'Speichern'}
-            </button>
+            {!isEditing && (
+              <button
+                type="submit"
+                disabled={saving || !formData.title.trim()}
+                className="btn btn-primary"
+              >
+                {saving ? 'Erstelle...' : 'Erstellen'}
+              </button>
+            )}
           </div>
         </form>
       </div>

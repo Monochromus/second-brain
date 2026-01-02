@@ -7,7 +7,7 @@ export default function ProjectGrid({ projects, loading, onEdit, onDelete, onArc
     return (
       <div className="notebook-section p-4">
         <div className="h-6 w-24 skeleton rounded mb-4" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {[1, 2].map((i) => (
             <div key={i} className="h-40 skeleton rounded" />
           ))}
@@ -25,9 +25,12 @@ export default function ProjectGrid({ projects, loading, onEdit, onDelete, onArc
             <h2 className="heading-3">Projekte</h2>
             <span className="text-sm text-text-secondary font-sans">({projects.length})</span>
           </div>
-          <button onClick={onAdd} className="btn btn-primary btn-sm py-1.5">
-            <Plus className="w-4 h-4" />
-            Neu
+          <button
+            onClick={onAdd}
+            className="w-10 h-10 rounded-full bg-accent text-white flex items-center justify-center hover:bg-accent/90 transition-colors"
+            title="Neues Projekt"
+          >
+            <Plus className="w-5 h-5" />
           </button>
         </div>
       </div>
@@ -35,7 +38,7 @@ export default function ProjectGrid({ projects, loading, onEdit, onDelete, onArc
 
       <div className="p-4">
         {projects.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {projects.slice(0, 4).map((project) => (
               <ProjectCard
                 key={project.id}
@@ -50,10 +53,6 @@ export default function ProjectGrid({ projects, loading, onEdit, onDelete, onArc
           <div className="text-center py-8">
             <Folder className="w-12 h-12 mx-auto text-text-secondary opacity-50 mb-4" />
             <p className="text-sm text-text-secondary">Noch keine Projekte</p>
-            <button onClick={onAdd} className="btn btn-secondary mt-4">
-              <Plus className="w-4 h-4" />
-              Projekt erstellen
-            </button>
           </div>
         )}
 

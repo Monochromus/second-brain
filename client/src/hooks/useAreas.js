@@ -44,7 +44,6 @@ export function useAreas(options = {}) {
     try {
       const area = await api.put(`/areas/${id}`, data);
       setAreas(prev => prev.map(a => a.id === id ? area : a));
-      toast.success('Area aktualisiert');
       return area;
     } catch (err) {
       toast.error(err.message || 'Fehler beim Aktualisieren');

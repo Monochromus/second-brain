@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Modal from '../shared/Modal';
 import IconPicker from '../shared/IconPicker';
 import { format } from 'date-fns';
 import { useAreas } from '../../hooks/useAreas';
+import { useAutosave } from '../../hooks/useAutosave';
 import { FolderOpen, Folder } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 
@@ -34,6 +35,18 @@ export default function ProjectModal({ isOpen, onClose, project, onSave, default
   });
   const [saving, setSaving] = useState(false);
   const [showIconPicker, setShowIconPicker] = useState(false);
+  const isEditing = Boolean(project);
+
+  const handleAutosave = useCallback(async (data) => {
+    if (!data.name.trim()) return;
+    await onSave({
+      ...data,
+      deadline: data.deadline || null,
+      area_id: data.area_id ? parseInt(data.area_id) : null
+    });
+  }, [onSave]);
+
+  const { saveImmediately } = useAutosave(handleAutosave, 500);
 
   useEffect(() => {
     if (project) {
@@ -59,6 +72,18 @@ export default function ProjectModal({ isOpen, onClose, project, onSave, default
     }
   }, [project, isOpen, defaultAreaId]);
 
+  const handleChange = (field, value) => {
+    const newData = { ...formData, [field]: value };
+    setFormData(newData);
+  };
+
+  const handleClose = async () => {
+    if (isEditing && formData.name.trim()) {
+      await saveImmediately(formData);
+    }
+    onClose();
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name.trim()) return;
@@ -83,7 +108,7 @@ export default function ProjectModal({ isOpen, onClose, project, onSave, default
     <>
       <Modal
         isOpen={isOpen}
-        onClose={onClose}
+        onClose={handleClose}
         title={project ? 'Projekt bearbeiten' : 'Neues Projekt'}
         size="md"
       >
@@ -93,8 +118,8 @@ export default function ProjectModal({ isOpen, onClose, project, onSave, default
             <input
               type="text"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="input"
+              onChange={(e) => handleChange('name', e.target.value)}
+                            className="input"
               placeholder="Name des Projekts"
               autoFocus
             />
@@ -104,8 +129,8 @@ export default function ProjectModal({ isOpen, onClose, project, onSave, default
             <label className="label">Beschreibung</label>
             <textarea
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="input min-h-[100px] resize-none"
+              onChange={(e) => handleChange('description', e.target.value)}
+                            className="input min-h-[100px] resize-none"
               placeholder="Worum geht es in diesem Projekt?"
             />
           </div>
@@ -116,8 +141,8 @@ export default function ProjectModal({ isOpen, onClose, project, onSave, default
               <FolderOpen className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
               <select
                 value={formData.area_id}
-                onChange={(e) => setFormData({ ...formData, area_id: e.target.value })}
-                className="input pl-10"
+                onChange={(e) => handleChange('area_id', e.target.value)}
+                                className="input pl-10"
               >
                 <option value="">Keine Area</option>
                 {areas.map((area) => (
@@ -150,7 +175,7 @@ export default function ProjectModal({ isOpen, onClose, project, onSave, default
                   <button
                     key={color}
                     type="button"
-                    onClick={() => setFormData({ ...formData, color })}
+                    onClick={() => handleChange('color', color)}
                     className={`w-8 h-8 rounded-full border-2 transition-all ${
                       formData.color === color
                         ? 'border-text-primary scale-110'
@@ -168,8 +193,8 @@ export default function ProjectModal({ isOpen, onClose, project, onSave, default
               <label className="label">Status</label>
               <select
                 value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="input"
+                onChange={(e) => handleChange('status', e.target.value)}
+                                className="input"
               >
                 <option value="active">Aktiv</option>
                 <option value="completed">Abgeschlossen</option>
@@ -182,23 +207,25 @@ export default function ProjectModal({ isOpen, onClose, project, onSave, default
               <input
                 type="date"
                 value={formData.deadline}
-                onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
-                className="input"
+                onChange={(e) => handleChange('deadline', e.target.value)}
+                                className="input"
               />
             </div>
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
-            <button type="button" onClick={onClose} className="btn btn-secondary">
-              Abbrechen
+            <button type="button" onClick={handleClose} className="btn btn-secondary">
+              {isEditing ? 'Schließen' : 'Abbrechen'}
             </button>
-            <button
-              type="submit"
-              disabled={!formData.name.trim() || saving}
-              className="btn btn-primary"
-            >
-              {saving ? 'Speichere...' : project ? 'Speichern' : 'Erstellen'}
-            </button>
+            {!isEditing && (
+              <button
+                type="submit"
+                disabled={!formData.name.trim() || saving}
+                className="btn btn-primary"
+              >
+                {saving ? 'Erstelle...' : 'Erstellen'}
+              </button>
+            )}
           </div>
         </form>
       </Modal>
@@ -206,7 +233,7 @@ export default function ProjectModal({ isOpen, onClose, project, onSave, default
       {showIconPicker && (
         <IconPicker
           value={formData.icon}
-          onChange={(icon) => setFormData({ ...formData, icon })}
+          onChange={(icon) => handleChange('icon', icon)}
           onClose={() => setShowIconPicker(false)}
         />
       )}

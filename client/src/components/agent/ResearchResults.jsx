@@ -208,14 +208,6 @@ export default function ResearchResults({ research }) {
               </div>
             )}
 
-            {/* Footer decoration */}
-            <div className="flex justify-center pt-2">
-              <div className="flex items-center gap-2 text-xs text-text-secondary/50">
-                <span>🔍</span>
-                <span>Powered by Perplexity AI</span>
-                <span>🤖</span>
-              </div>
-            </div>
           </div>
         )}
       </div>

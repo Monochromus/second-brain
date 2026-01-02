@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
 import { format, isToday, isTomorrow, parseISO, addDays } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { Calendar, Clock, MapPin, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, MapPin, ChevronRight, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn, formatTime } from '../../lib/utils';
 
-export default function TodayCalendar({ events, loading }) {
+export default function TodayCalendar({ events, loading, onAdd }) {
   const groupedEvents = useMemo(() => {
     const today = new Date();
     const todayEvents = [];
@@ -50,13 +50,24 @@ export default function TodayCalendar({ events, loading }) {
             <Calendar className="w-5 h-5 text-accent" />
             <h2 className="heading-3">Heute</h2>
           </div>
-          <Link
-            to="/calendar"
-            className="text-sm text-text-secondary hover:text-accent flex items-center gap-1 font-sans"
-          >
-            Alle anzeigen
-            <ChevronRight className="w-4 h-4" />
-          </Link>
+          <div className="flex items-center gap-2">
+            {onAdd && (
+              <button
+                onClick={onAdd}
+                className="w-10 h-10 rounded-full bg-accent text-white flex items-center justify-center hover:bg-accent/90 transition-colors"
+                title="Neuer Termin"
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+            )}
+            <Link
+              to="/calendar"
+              className="text-sm text-text-secondary hover:text-accent flex items-center gap-1 font-sans"
+            >
+              Alle anzeigen
+              <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
         </div>
         <p className="font-handwriting text-lg text-text-secondary mt-1">
           {format(new Date(), 'EEEE, d. MMMM yyyy', { locale: de })}

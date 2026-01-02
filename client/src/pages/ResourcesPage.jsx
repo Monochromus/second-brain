@@ -75,10 +75,10 @@ export default function ResourcesPage() {
         </div>
         <button
           onClick={() => setModal({ open: true, resource: null })}
-          className="btn btn-primary"
+          className="w-10 h-10 rounded-full bg-accent text-white flex items-center justify-center hover:bg-accent/90 transition-colors"
+          title="Neue Ressource"
         >
-          <Plus className="w-4 h-4" />
-          Neue Ressource
+          <Plus className="w-5 h-5" />
         </button>
       </div>
 
@@ -127,15 +127,6 @@ export default function ResourcesPage() {
               : 'Speichere hier Wissen, Links, Anleitungen und alles, was du später brauchen könntest.'
             }
           </p>
-          {!searchQuery && !selectedCategory && (
-            <button
-              onClick={() => setModal({ open: true, resource: null })}
-              className="btn btn-primary"
-            >
-              <Plus className="w-4 h-4" />
-              Erste Ressource erstellen
-            </button>
-          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">

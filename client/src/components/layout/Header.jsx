@@ -9,8 +9,8 @@ import { cn } from '../../lib/utils';
 // Navigation items configuration
 const navItems = [
   { path: '/', icon: Home, label: 'Dashboard', exact: true },
-  { path: '/projects', icon: LayoutGrid, label: 'Projekte' },
-  { path: '/areas', icon: FolderOpen, label: 'Areas' },
+  { path: '/projects', icon: LayoutGrid, label: 'Projekte', alsoMatch: '/project' },
+  { path: '/areas', icon: FolderOpen, label: 'Areas', alsoMatch: '/area' },
   { path: '/resources', icon: Library, label: 'Ressourcen' },
   { path: '/tools', icon: Wrench, label: 'Tools' },
   { path: '/calendar', icon: Calendar, label: 'Kalender' },
@@ -120,7 +120,14 @@ export default function Header() {
     if (item.exact) {
       return location.pathname === item.path;
     }
-    return location.pathname.startsWith(item.path);
+    if (location.pathname.startsWith(item.path)) {
+      return true;
+    }
+    // Also check singular paths (e.g., /area/1 should highlight /areas)
+    if (item.alsoMatch && location.pathname.startsWith(item.alsoMatch)) {
+      return true;
+    }
+    return false;
   };
 
   return (

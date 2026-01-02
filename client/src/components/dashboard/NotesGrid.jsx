@@ -6,7 +6,7 @@ export default function NotesGrid({ notes, loading, onEdit, onDelete, onTogglePi
     return (
       <div className="notebook-section p-4">
         <div className="h-6 w-24 skeleton rounded mb-4" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="h-32 skeleton rounded" />
           ))}
@@ -24,9 +24,12 @@ export default function NotesGrid({ notes, loading, onEdit, onDelete, onTogglePi
             <h2 className="heading-3">Notizen</h2>
             <span className="text-sm text-text-secondary font-sans">({notes.length})</span>
           </div>
-          <button onClick={onAdd} className="btn btn-primary btn-sm py-1.5">
-            <Plus className="w-4 h-4" />
-            Neu
+          <button
+            onClick={onAdd}
+            className="w-10 h-10 rounded-full bg-accent text-white flex items-center justify-center hover:bg-accent/90 transition-colors"
+            title="Neue Notiz"
+          >
+            <Plus className="w-5 h-5" />
           </button>
         </div>
       </div>
@@ -34,7 +37,7 @@ export default function NotesGrid({ notes, loading, onEdit, onDelete, onTogglePi
 
       <div className="p-4">
         {notes.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {notes.slice(0, 8).map((note) => (
               <NoteCard
                 key={note.id}
@@ -62,10 +65,6 @@ export default function NotesGrid({ notes, loading, onEdit, onDelete, onTogglePi
           <div className="text-center py-8">
             <FileText className="w-12 h-12 mx-auto text-text-secondary opacity-50 mb-4" />
             <p className="text-sm text-text-secondary">Noch keine Notizen</p>
-            <button onClick={onAdd} className="btn btn-secondary mt-4">
-              <Plus className="w-4 h-4" />
-              Notiz erstellen
-            </button>
           </div>
         )}
       </div>

@@ -63,7 +63,7 @@ WICHTIGE ANTWORT-REGELN:
 Weitere Regeln:
 1. Führe Aktionen direkt aus, frage nur bei echten Unklarheiten nach
 2. Wenn der Nutzer etwas Unklares sagt, interpretiere es bestmöglich
-3. Schlage bei neuen Todos automatisch passende Projekte vor, wenn es welche gibt
+3. PARA-Verknüpfungen: Verknüpfe IMMER automatisch - nutze list_projects/list_areas um passende zuzuordnen. Erstelle Todo mit project_id wenn ein passendes Projekt existiert. Bei neuem Projekt mit Todos: erst Projekt erstellen, dann Todos mit dessen project_id.
 4. Nutze Kontext aus bestehenden Projekten und Todos
 5. Bei Zeitangaben wie "morgen", "nächste Woche" berechne das korrekte Datum
 6. Antworte immer auf Deutsch

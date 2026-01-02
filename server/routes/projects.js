@@ -87,6 +87,14 @@ router.get('/:id', asyncHandler(async (req, res) => {
     ORDER BY start_time ASC
   `).all(id);
 
+  const resources = db.prepare(`
+    SELECT * FROM resources WHERE project_id = ? AND is_archived = 0
+    ORDER BY position ASC, updated_at DESC
+  `).all(id).map(r => ({
+    ...r,
+    tags: JSON.parse(r.tags || '[]')
+  }));
+
   const todoStats = db.prepare(`
     SELECT
       COUNT(*) as total,
@@ -102,12 +110,14 @@ router.get('/:id', asyncHandler(async (req, res) => {
         completedTodos: todoStats.completed || 0,
         progress: todoStats.total > 0 ? Math.round((todoStats.completed / todoStats.total) * 100) : 0,
         noteCount: notes.length,
-        eventCount: events.length
+        eventCount: events.length,
+        resourceCount: resources.length
       }
     },
     todos,
     notes,
-    events
+    events,
+    resources
   });
 }));
 

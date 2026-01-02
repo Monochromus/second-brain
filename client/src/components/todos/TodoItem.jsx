@@ -102,7 +102,12 @@ export default function TodoItem({
           )}
 
           {showProject && todo.project_name && (
-            <span className="flex items-center gap-1 text-xs text-text-secondary font-handwriting">
+            <span
+              className="flex items-center gap-1 text-xs font-handwriting"
+              style={{
+                color: todo.project_color || 'var(--text-secondary)'
+              }}
+            >
               <Folder className="w-3 h-3" />
               {todo.project_name}
             </span>

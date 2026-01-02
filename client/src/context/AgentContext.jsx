@@ -281,6 +281,12 @@ export function AgentProvider({ children }) {
     saveToStorage(STORAGE_KEYS.LAST_RESPONSE, null);
   }, []);
 
+  // Clear only the current response (not history)
+  const clearLastResponse = useCallback(() => {
+    setLastResponse(null);
+    saveToStorage(STORAGE_KEYS.LAST_RESPONSE, null);
+  }, []);
+
   return (
     <AgentContext.Provider
       value={{
@@ -290,6 +296,7 @@ export function AgentProvider({ children }) {
         lastResponse,
         history,
         clearHistory,
+        clearLastResponse,
         registerRefreshListener,
         // Vision/Extraction
         visionResponse,

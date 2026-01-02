@@ -5,6 +5,7 @@ import {
   CheckCircle, FileText, Calendar, FolderKanban, Globe, ArrowRight
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useAuth } from '../../hooks/useAuth';
 import ImageUpload from './ImageUpload';
 import ExtractionResults from './ExtractionResults';
 import ResearchResults from './ResearchResults';
@@ -110,6 +111,7 @@ export default function AgentInput({
   onSendWithImages,
   isProcessing,
   lastResponse,
+  onClearResponse,
   visionResponse,
   extractedData,
   onConfirmExtraction,
@@ -117,12 +119,16 @@ export default function AgentInput({
   isConfirming
 }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [message, setMessage] = useState('');
   const [isResponseExpanded, setIsResponseExpanded] = useState(false);
   const [isExamplesExpanded, setIsExamplesExpanded] = useState(false);
   const [showImageUpload, setShowImageUpload] = useState(false);
   const [images, setImages] = useState([]);
   const inputRef = useRef(null);
+
+  // Check if user is using standard (free) models
+  const isStandardModel = !user?.settings?.openaiApiKey && !user?.settings?.perplexityApiKey;
 
   useEffect(() => {
     if (!isProcessing && inputRef.current) {
@@ -322,6 +328,19 @@ export default function AgentInput({
                 <ChevronDown className="w-4 h-4" />
               )}
             </button>
+
+            {/* Dismiss Button */}
+            <button
+              onClick={onClearResponse}
+              className={cn(
+                "p-1.5 rounded-lg transition-all duration-200 flex-shrink-0",
+                "text-text-secondary hover:text-error",
+                "hover:bg-white/30 dark:hover:bg-white/10"
+              )}
+              title="Antwort entfernen"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
 
           {/* Detailansicht - Ausgeklappt */}
@@ -453,6 +472,20 @@ export default function AgentInput({
                       <span className="text-xs">Keine weiteren Details verfügbar</span>
                     </div>
                   )}
+
+                  {/* Footer - Powered by Hinweis */}
+                  <div className="flex flex-col items-center gap-1 pt-3 mt-2 border-t border-white/10">
+                    <div className="flex items-center gap-2 text-xs text-text-secondary/50">
+                      <span>🔍</span>
+                      <span>Powered by Perplexity AI & OpenAI</span>
+                      <span>🤖</span>
+                    </div>
+                    {isStandardModel && (
+                      <p className="text-xs text-text-secondary/60 text-center max-w-sm">
+                        Du nutzt die kostenlosen Standardmodelle. Für komplexere Anfragen empfehlen wir ein Pro-Modell in den Einstellungen.
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

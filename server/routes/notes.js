@@ -11,33 +11,41 @@ router.get('/', asyncHandler(async (req, res) => {
   const userId = req.userId;
   const { project_id, area_id, tags, search, limit } = req.query;
 
-  let query = 'SELECT * FROM notes WHERE user_id = ? AND is_archived = 0';
+  let query = `
+    SELECT n.*,
+           p.name as project_name, p.color as project_color,
+           a.name as area_name, a.color as area_color
+    FROM notes n
+    LEFT JOIN projects p ON n.project_id = p.id
+    LEFT JOIN areas a ON n.area_id = a.id
+    WHERE n.user_id = ? AND n.is_archived = 0
+  `;
   const params = [userId];
 
   if (project_id) {
     if (project_id === 'null') {
-      query += ' AND project_id IS NULL';
+      query += ' AND n.project_id IS NULL';
     } else {
-      query += ' AND project_id = ?';
+      query += ' AND n.project_id = ?';
       params.push(parseInt(project_id));
     }
   }
 
   if (area_id) {
     if (area_id === 'null') {
-      query += ' AND area_id IS NULL';
+      query += ' AND n.area_id IS NULL';
     } else {
-      query += ' AND area_id = ?';
+      query += ' AND n.area_id = ?';
       params.push(parseInt(area_id));
     }
   }
 
   if (search) {
-    query += ' AND (title LIKE ? OR content LIKE ?)';
+    query += ' AND (n.title LIKE ? OR n.content LIKE ?)';
     params.push(`%${search}%`, `%${search}%`);
   }
 
-  query += ' ORDER BY is_pinned DESC, position ASC, updated_at DESC';
+  query += ' ORDER BY n.is_pinned DESC, n.position ASC, n.updated_at DESC';
 
   if (limit) {
     query += ' LIMIT ?';

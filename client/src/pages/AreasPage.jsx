@@ -98,10 +98,10 @@ export default function AreasPage() {
         </div>
         <button
           onClick={() => setModal({ open: true, area: null })}
-          className="btn btn-primary"
+          className="w-10 h-10 rounded-full bg-accent text-white flex items-center justify-center hover:bg-accent/90 transition-colors"
+          title="Neue Area"
         >
-          <Plus className="w-4 h-4" />
-          Neue Area
+          <Plus className="w-5 h-5" />
         </button>
       </div>
 
@@ -119,13 +119,6 @@ export default function AreasPage() {
             Areas sind dauerhafte Verantwortungsbereiche nach dem PARA-Prinzip.
             Beispiele: Arbeit, Gesundheit, Familie, Finanzen.
           </p>
-          <button
-            onClick={() => setModal({ open: true, area: null })}
-            className="btn btn-primary"
-          >
-            <Plus className="w-4 h-4" />
-            Erste Area erstellen
-          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">

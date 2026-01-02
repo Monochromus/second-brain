@@ -154,10 +154,13 @@ body {
     @apply rounded-xl transition-all duration-200;
   }
 
-  .notebook-card:hover {
-    background: var(--surface);
-    box-shadow: var(--shadow-card-hover);
-    transform: translateY(-1px);
+  /* Hover-Effekte nur für echte Maus-/Trackpad-Geräte */
+  @media (hover: hover) and (pointer: fine) {
+    .notebook-card:hover {
+      background: var(--surface);
+      box-shadow: var(--shadow-card-hover);
+      transform: translateY(-1px);
+    }
   }
 
   /* Glass components - kept for compatibility but softer */
@@ -189,9 +192,12 @@ body {
     @apply rounded-xl transition-all duration-200;
   }
 
-  .card:hover {
-    background: var(--surface);
-    box-shadow: var(--shadow-card-hover);
+  /* Hover-Effekte nur für echte Maus-/Trackpad-Geräte */
+  @media (hover: hover) and (pointer: fine) {
+    .card:hover {
+      background: var(--surface);
+      box-shadow: var(--shadow-card-hover);
+    }
   }
 
   /* =============================================

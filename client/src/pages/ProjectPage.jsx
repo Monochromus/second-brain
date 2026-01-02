@@ -5,6 +5,7 @@ import ProjectDetail from '../components/projects/ProjectDetail';
 import ProjectModal from '../components/projects/ProjectModal';
 import TodoModal from '../components/todos/TodoModal';
 import NoteModal from '../components/notes/NoteModal';
+import ResourceModal from '../components/resources/ResourceModal';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
 import LoadingSpinner from '../components/shared/LoadingSpinner';
 import Breadcrumbs from '../components/shared/Breadcrumbs';
@@ -16,11 +17,12 @@ import toast from 'react-hot-toast';
 
 export default function ProjectPage() {
   const { id } = useParams();
-  const { project, todos, notes, events, loading, refetch } = useProject(id);
+  const { project, todos, notes, events, resources, loading, refetch } = useProject(id);
 
   const [projectModal, setProjectModal] = useState(false);
   const [todoModal, setTodoModal] = useState({ open: false, todo: null });
   const [noteModal, setNoteModal] = useState({ open: false, note: null });
+  const [resourceModal, setResourceModal] = useState({ open: false, resource: null });
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, type: null, id: null });
 
   if (loading) {
@@ -42,7 +44,6 @@ export default function ProjectPage() {
   const handleSaveProject = async (data) => {
     try {
       await api.put(`/projects/${id}`, data);
-      toast.success('Projekt aktualisiert');
       refetch();
     } catch (err) {
       toast.error(err.message);
@@ -62,11 +63,12 @@ export default function ProjectPage() {
     try {
       if (todoModal.todo) {
         await api.put(`/todos/${todoModal.todo.id}`, data);
+        refetch();
       } else {
         await api.post('/todos', { ...data, project_id: parseInt(id) });
+        toast.success('Todo erstellt');
+        refetch();
       }
-      toast.success(todoModal.todo ? 'Todo aktualisiert' : 'Todo erstellt');
-      refetch();
     } catch (err) {
       toast.error(err.message);
     }
@@ -76,11 +78,12 @@ export default function ProjectPage() {
     try {
       if (noteModal.note) {
         await api.put(`/notes/${noteModal.note.id}`, data);
+        refetch();
       } else {
         await api.post('/notes', { ...data, project_id: parseInt(id) });
+        toast.success('Notiz erstellt');
+        refetch();
       }
-      toast.success(noteModal.note ? 'Notiz aktualisiert' : 'Notiz erstellt');
-      refetch();
     } catch (err) {
       toast.error(err.message);
     }
@@ -90,6 +93,21 @@ export default function ProjectPage() {
     try {
       await api.put(`/notes/${noteId}/pin`);
       refetch();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleSaveResource = async (data) => {
+    try {
+      if (resourceModal.resource) {
+        await api.put(`/resources/${resourceModal.resource.id}`, data);
+        refetch();
+      } else {
+        await api.post('/resources', { ...data, project_id: parseInt(id) });
+        toast.success('Ressource erstellt');
+        refetch();
+      }
     } catch (err) {
       toast.error(err.message);
     }
@@ -105,6 +123,10 @@ export default function ProjectPage() {
       if (type === 'note') {
         await api.delete(`/notes/${itemId}`);
         toast.success('Notiz gelöscht');
+      }
+      if (type === 'resource') {
+        await api.delete(`/resources/${itemId}`);
+        toast.success('Ressource gelöscht');
       }
       refetch();
     } catch (err) {
@@ -126,6 +148,7 @@ export default function ProjectPage() {
         todos={todos}
         notes={notes}
         events={events}
+        resources={resources}
         onEditProject={() => setProjectModal(true)}
         onToggleTodo={handleToggleTodo}
         onEditTodo={(todo) => setTodoModal({ open: true, todo })}
@@ -133,8 +156,11 @@ export default function ProjectPage() {
         onEditNote={(note) => setNoteModal({ open: true, note })}
         onDeleteNote={(noteId) => setDeleteConfirm({ open: true, type: 'note', id: noteId })}
         onToggleNotePin={handleToggleNotePin}
+        onEditResource={(resource) => setResourceModal({ open: true, resource })}
+        onDeleteResource={(resourceId) => setDeleteConfirm({ open: true, type: 'resource', id: resourceId })}
         onAddTodo={() => setTodoModal({ open: true, todo: null })}
         onAddNote={() => setNoteModal({ open: true, note: null })}
+        onAddResource={() => setResourceModal({ open: true, resource: null })}
       />
 
       <ProjectModal
@@ -149,6 +175,7 @@ export default function ProjectPage() {
         onClose={() => setTodoModal({ open: false, todo: null })}
         todo={todoModal.todo}
         onSave={handleSaveTodo}
+        defaultProjectId={parseInt(id)}
       />
 
       <NoteModal
@@ -156,6 +183,14 @@ export default function ProjectPage() {
         onClose={() => setNoteModal({ open: false, note: null })}
         note={noteModal.note}
         onSave={handleSaveNote}
+        defaultProjectId={parseInt(id)}
+      />
+
+      <ResourceModal
+        isOpen={resourceModal.open}
+        onClose={() => setResourceModal({ open: false, resource: null })}
+        resource={resourceModal.resource}
+        onSave={handleSaveResource}
       />
 
       <ConfirmDialog
@@ -164,7 +199,8 @@ export default function ProjectPage() {
         onConfirm={handleConfirmDelete}
         title="Löschen bestätigen"
         message={`Möchtest du ${
-          deleteConfirm.type === 'todo' ? 'dieses Todo' : 'diese Notiz'
+          deleteConfirm.type === 'todo' ? 'dieses Todo' :
+          deleteConfirm.type === 'note' ? 'diese Notiz' : 'diese Ressource'
         } wirklich löschen?`}
         confirmText="Löschen"
       />

@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Modal from '../shared/Modal';
 import { useProjects } from '../../hooks/useProjects';
+import { useAutosave } from '../../hooks/useAutosave';
 import { format } from 'date-fns';
 
-export default function TodoModal({ isOpen, onClose, todo, onSave }) {
+export default function TodoModal({ isOpen, onClose, todo, onSave, defaultProjectId }) {
   const { projects } = useProjects({ status: 'active' });
   const [formData, setFormData] = useState({
     title: '',
@@ -15,6 +16,19 @@ export default function TodoModal({ isOpen, onClose, todo, onSave }) {
     project_id: ''
   });
   const [saving, setSaving] = useState(false);
+  const isEditing = Boolean(todo);
+
+  const handleAutosave = useCallback(async (data) => {
+    if (!data.title.trim()) return;
+    await onSave({
+      ...data,
+      project_id: data.project_id || null,
+      due_date: data.due_date || null,
+      due_time: data.due_time || null
+    });
+  }, [onSave]);
+
+  const { saveImmediately } = useAutosave(handleAutosave, 500);
 
   useEffect(() => {
     if (todo) {
@@ -35,10 +49,22 @@ export default function TodoModal({ isOpen, onClose, todo, onSave }) {
         status: 'open',
         due_date: '',
         due_time: '',
-        project_id: ''
+        project_id: defaultProjectId || ''
       });
     }
-  }, [todo, isOpen]);
+  }, [todo, isOpen, defaultProjectId]);
+
+  const handleChange = (field, value) => {
+    const newData = { ...formData, [field]: value };
+    setFormData(newData);
+  };
+
+  const handleClose = async () => {
+    if (isEditing && formData.title.trim()) {
+      await saveImmediately(formData);
+    }
+    onClose();
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -61,7 +87,7 @@ export default function TodoModal({ isOpen, onClose, todo, onSave }) {
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title={todo ? 'Todo bearbeiten' : 'Neues Todo'}
       size="md"
     >
@@ -71,8 +97,8 @@ export default function TodoModal({ isOpen, onClose, todo, onSave }) {
           <input
             type="text"
             value={formData.title}
-            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-            className="input"
+            onChange={(e) => handleChange('title', e.target.value)}
+                        className="input"
             placeholder="Was muss erledigt werden?"
             autoFocus
           />
@@ -82,8 +108,8 @@ export default function TodoModal({ isOpen, onClose, todo, onSave }) {
           <label className="label">Beschreibung</label>
           <textarea
             value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            className="input min-h-[100px] resize-none"
+            onChange={(e) => handleChange('description', e.target.value)}
+                        className="input min-h-[100px] resize-none"
             placeholder="Optionale Details..."
           />
         </div>
@@ -93,8 +119,8 @@ export default function TodoModal({ isOpen, onClose, todo, onSave }) {
             <label className="label">Priorität</label>
             <select
               value={formData.priority}
-              onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) })}
-              className="input"
+              onChange={(e) => handleChange('priority', parseInt(e.target.value))}
+                            className="input"
             >
               <option value={1}>Sehr hoch</option>
               <option value={2}>Hoch</option>
@@ -108,8 +134,8 @@ export default function TodoModal({ isOpen, onClose, todo, onSave }) {
             <label className="label">Status</label>
             <select
               value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-              className="input"
+              onChange={(e) => handleChange('status', e.target.value)}
+                            className="input"
             >
               <option value="open">Offen</option>
               <option value="in_progress">In Bearbeitung</option>
@@ -125,8 +151,8 @@ export default function TodoModal({ isOpen, onClose, todo, onSave }) {
             <input
               type="date"
               value={formData.due_date}
-              onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-              className="input"
+              onChange={(e) => handleChange('due_date', e.target.value)}
+                            className="input"
             />
           </div>
 
@@ -135,8 +161,8 @@ export default function TodoModal({ isOpen, onClose, todo, onSave }) {
             <input
               type="time"
               value={formData.due_time}
-              onChange={(e) => setFormData({ ...formData, due_time: e.target.value })}
-              className="input"
+              onChange={(e) => handleChange('due_time', e.target.value)}
+                            className="input"
             />
           </div>
         </div>
@@ -145,8 +171,8 @@ export default function TodoModal({ isOpen, onClose, todo, onSave }) {
           <label className="label">Projekt</label>
           <select
             value={formData.project_id}
-            onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
-            className="input"
+            onChange={(e) => handleChange('project_id', e.target.value)}
+                        className="input"
           >
             <option value="">Kein Projekt</option>
             {projects.map((project) => (
@@ -158,16 +184,18 @@ export default function TodoModal({ isOpen, onClose, todo, onSave }) {
         </div>
 
         <div className="flex justify-end gap-3 pt-4">
-          <button type="button" onClick={onClose} className="btn btn-secondary">
-            Abbrechen
+          <button type="button" onClick={handleClose} className="btn btn-secondary">
+            {isEditing ? 'Schließen' : 'Abbrechen'}
           </button>
-          <button
-            type="submit"
-            disabled={!formData.title.trim() || saving}
-            className="btn btn-primary"
-          >
-            {saving ? 'Speichere...' : todo ? 'Speichern' : 'Erstellen'}
-          </button>
+          {!isEditing && (
+            <button
+              type="submit"
+              disabled={!formData.title.trim() || saving}
+              className="btn btn-primary"
+            >
+              {saving ? 'Erstelle...' : 'Erstellen'}
+            </button>
+          )}
         </div>
       </form>
     </Modal>

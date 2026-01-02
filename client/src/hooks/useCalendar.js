@@ -56,7 +56,6 @@ export function useCalendar(options = {}) {
     try {
       const response = await api.put(`/calendar/events/${id}`, data);
       setEvents((prev) => prev.map((e) => (e.id === id ? response.event : e)));
-      toast.success('Termin aktualisiert');
       return response.event;
     } catch (err) {
       toast.error(err.message);

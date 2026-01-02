@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Modal from '../shared/Modal';
 import NoteEditor from './NoteEditor';
 import { useProjects } from '../../hooks/useProjects';
 import { useAreas } from '../../hooks/useAreas';
+import { useAutosave } from '../../hooks/useAutosave';
 import { X, Plus } from 'lucide-react';
 
 const colorOptions = [
@@ -15,7 +16,7 @@ const colorOptions = [
   { value: '#FED7AA', label: 'Orange' }
 ];
 
-export default function NoteModal({ isOpen, onClose, note, onSave }) {
+export default function NoteModal({ isOpen, onClose, note, onSave, defaultProjectId, defaultAreaId }) {
   const { projects } = useProjects({ status: 'active' });
   const { areas } = useAreas();
   const [formData, setFormData] = useState({
@@ -29,6 +30,19 @@ export default function NoteModal({ isOpen, onClose, note, onSave }) {
   });
   const [tagInput, setTagInput] = useState('');
   const [saving, setSaving] = useState(false);
+  const isEditing = Boolean(note);
+
+  const handleAutosave = useCallback(async (data) => {
+    if (!data.title.trim()) return;
+    await onSave({
+      ...data,
+      project_id: data.project_id || null,
+      area_id: data.area_id || null,
+      color: data.color || null
+    });
+  }, [onSave]);
+
+  const { saveImmediately } = useAutosave(handleAutosave, 500);
 
   useEffect(() => {
     if (note) {
@@ -47,13 +61,25 @@ export default function NoteModal({ isOpen, onClose, note, onSave }) {
         content: '',
         tags: [],
         color: '',
-        project_id: '',
-        area_id: '',
+        project_id: defaultProjectId || '',
+        area_id: defaultAreaId || '',
         is_pinned: false
       });
     }
     setTagInput('');
-  }, [note, isOpen]);
+  }, [note, isOpen, defaultProjectId, defaultAreaId]);
+
+  const handleChange = (field, value) => {
+    const newData = { ...formData, [field]: value };
+    setFormData(newData);
+  };
+
+  const handleClose = async () => {
+    if (isEditing && formData.title.trim()) {
+      await saveImmediately(formData);
+    }
+    onClose();
+  };
 
   const handleAddTag = () => {
     const tag = tagInput.trim().toLowerCase();
@@ -101,7 +127,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave }) {
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title={note ? 'Notiz bearbeiten' : 'Neue Notiz'}
       size="lg"
     >
@@ -111,7 +137,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave }) {
           <input
             type="text"
             value={formData.title}
-            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            onChange={(e) => handleChange('title', e.target.value)}
             className="input"
             placeholder="Titel der Notiz"
             autoFocus
@@ -122,7 +148,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave }) {
           <label className="label">Inhalt</label>
           <NoteEditor
             content={formData.content}
-            onChange={(content) => setFormData({ ...formData, content })}
+            onChange={(content) => handleChange('content', content)}
             placeholder="Schreibe deine Notiz..."
           />
         </div>
@@ -170,7 +196,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave }) {
             <label className="label">Projekt</label>
             <select
               value={formData.project_id}
-              onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
+              onChange={(e) => handleChange('project_id', e.target.value)}
               className="input"
             >
               <option value="">Kein Projekt</option>
@@ -186,7 +212,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave }) {
             <label className="label">Area</label>
             <select
               value={formData.area_id}
-              onChange={(e) => setFormData({ ...formData, area_id: e.target.value })}
+              onChange={(e) => handleChange('area_id', e.target.value)}
               className="input"
             >
               <option value="">Keine Area</option>
@@ -206,7 +232,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave }) {
               <button
                 key={color.value || 'default'}
                 type="button"
-                onClick={() => setFormData({ ...formData, color: color.value })}
+                onClick={() => handleChange('color', color.value)}
                 className={`w-8 h-8 rounded-full border-2 transition-all ${
                   formData.color === color.value
                     ? 'border-accent scale-110'
@@ -226,7 +252,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave }) {
             type="checkbox"
             id="is_pinned"
             checked={formData.is_pinned}
-            onChange={(e) => setFormData({ ...formData, is_pinned: e.target.checked })}
+            onChange={(e) => handleChange('is_pinned', e.target.checked)}
             className="checkbox"
           />
           <label htmlFor="is_pinned" className="text-sm text-text-primary cursor-pointer">
@@ -235,16 +261,18 @@ export default function NoteModal({ isOpen, onClose, note, onSave }) {
         </div>
 
         <div className="flex justify-end gap-3 pt-4">
-          <button type="button" onClick={onClose} className="btn btn-secondary">
-            Abbrechen
+          <button type="button" onClick={handleClose} className="btn btn-secondary">
+            {isEditing ? 'Schließen' : 'Abbrechen'}
           </button>
-          <button
-            type="submit"
-            disabled={!formData.title.trim() || saving}
-            className="btn btn-primary"
-          >
-            {saving ? 'Speichere...' : note ? 'Speichern' : 'Erstellen'}
-          </button>
+          {!isEditing && (
+            <button
+              type="submit"
+              disabled={!formData.title.trim() || saving}
+              className="btn btn-primary"
+            >
+              {saving ? 'Erstelle...' : 'Erstellen'}
+            </button>
+          )}
         </div>
       </form>
     </Modal>
