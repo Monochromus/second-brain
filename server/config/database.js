@@ -275,7 +275,7 @@ function runMigrations() {
     console.log('Migration: Added cover_image to areas');
   }
 
-  // Check and add project_id to resources
+  // Check and add project_id to resources (legacy - will be replaced by junction table)
   try {
     db.prepare('SELECT project_id FROM resources LIMIT 1').get();
   } catch {
@@ -283,6 +283,29 @@ function runMigrations() {
     db.exec('CREATE INDEX IF NOT EXISTS idx_resources_project ON resources(project_id)');
     console.log('Migration: Added project_id to resources');
   }
+
+  // Check and add resource_id to notes (PARA: Notes can belong to Resources)
+  try {
+    db.prepare('SELECT resource_id FROM notes LIMIT 1').get();
+  } catch {
+    db.exec('ALTER TABLE notes ADD COLUMN resource_id INTEGER REFERENCES resources(id) ON DELETE SET NULL');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_notes_resource ON notes(resource_id)');
+    console.log('Migration: Added resource_id to notes');
+  }
+
+  // Create project_resources junction table (PARA: Resources can link to multiple Projects)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS project_resources (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      resource_id INTEGER NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(project_id, resource_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_project_resources_project ON project_resources(project_id);
+    CREATE INDEX IF NOT EXISTS idx_project_resources_resource ON project_resources(resource_id);
+  `);
+  console.log('Migration: Ensured project_resources junction table exists');
 
   // Create captures table if not exists
   db.exec(`

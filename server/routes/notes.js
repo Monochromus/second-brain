@@ -7,17 +7,20 @@ const router = express.Router();
 
 router.use(requireAuth);
 
+// PARA: Notes can belong to ONE of: Project, Area, or Resource (exclusive)
 router.get('/', asyncHandler(async (req, res) => {
   const userId = req.userId;
-  const { project_id, area_id, tags, search, limit } = req.query;
+  const { project_id, area_id, resource_id, tags, search, limit } = req.query;
 
   let query = `
     SELECT n.*,
            p.name as project_name, p.color as project_color,
-           a.name as area_name, a.color as area_color
+           a.name as area_name, a.color as area_color,
+           r.title as resource_name, r.category as resource_category
     FROM notes n
     LEFT JOIN projects p ON n.project_id = p.id
     LEFT JOIN areas a ON n.area_id = a.id
+    LEFT JOIN resources r ON n.resource_id = r.id
     WHERE n.user_id = ? AND n.is_archived = 0
   `;
   const params = [userId];
@@ -37,6 +40,15 @@ router.get('/', asyncHandler(async (req, res) => {
     } else {
       query += ' AND n.area_id = ?';
       params.push(parseInt(area_id));
+    }
+  }
+
+  if (resource_id) {
+    if (resource_id === 'null') {
+      query += ' AND n.resource_id IS NULL';
+    } else {
+      query += ' AND n.resource_id = ?';
+      params.push(parseInt(resource_id));
     }
   }
 
@@ -98,12 +110,19 @@ router.get('/:id', asyncHandler(async (req, res) => {
   });
 }));
 
+// PARA: Notes belong to exactly ONE container (Project, Area, or Resource)
 router.post('/', asyncHandler(async (req, res) => {
   const userId = req.userId;
-  const { title, content, tags, color, is_pinned, project_id, area_id, position } = req.body;
+  const { title, content, tags, color, is_pinned, project_id, area_id, resource_id, position } = req.body;
 
   if (!title || !title.trim()) {
     return res.status(400).json({ error: 'Titel ist erforderlich.' });
+  }
+
+  // PARA: Ensure exclusive container assignment
+  const containers = [project_id, area_id, resource_id].filter(Boolean);
+  if (containers.length > 1) {
+    return res.status(400).json({ error: 'Eine Notiz kann nur einem Container (Projekt, Area oder Ressource) zugeordnet werden.' });
   }
 
   const maxPosition = db.prepare('SELECT MAX(position) as max FROM notes WHERE user_id = ?')
@@ -111,8 +130,8 @@ router.post('/', asyncHandler(async (req, res) => {
   const newPosition = position !== undefined ? position : (maxPosition.max || 0) + 1;
 
   const result = db.prepare(`
-    INSERT INTO notes (user_id, title, content, tags, color, is_pinned, project_id, area_id, position)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO notes (user_id, title, content, tags, color, is_pinned, project_id, area_id, resource_id, position)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     userId,
     title.trim(),
@@ -122,10 +141,22 @@ router.post('/', asyncHandler(async (req, res) => {
     is_pinned ? 1 : 0,
     project_id || null,
     area_id || null,
+    resource_id || null,
     newPosition
   );
 
-  const note = db.prepare('SELECT * FROM notes WHERE id = ?').get(result.lastInsertRowid);
+  // Fetch note with joined names for immediate UI update
+  const note = db.prepare(`
+    SELECT n.*,
+           p.name as project_name, p.color as project_color,
+           a.name as area_name, a.color as area_color,
+           r.title as resource_name, r.category as resource_category
+    FROM notes n
+    LEFT JOIN projects p ON n.project_id = p.id
+    LEFT JOIN areas a ON n.area_id = a.id
+    LEFT JOIN resources r ON n.resource_id = r.id
+    WHERE n.id = ?
+  `).get(result.lastInsertRowid);
 
   res.status(201).json({
     note: {
@@ -137,16 +168,26 @@ router.post('/', asyncHandler(async (req, res) => {
   });
 }));
 
+// PARA: Notes belong to exactly ONE container (Project, Area, or Resource)
 router.put('/:id', asyncHandler(async (req, res) => {
   const userId = req.userId;
   const { id } = req.params;
-  const { title, content, tags, color, is_pinned, project_id, area_id, position } = req.body;
+  const { title, content, tags, color, is_pinned, project_id, area_id, resource_id, position } = req.body;
 
   const existing = db.prepare('SELECT * FROM notes WHERE id = ? AND user_id = ?')
     .get(id, userId);
 
   if (!existing) {
     return res.status(404).json({ error: 'Notiz nicht gefunden.' });
+  }
+
+  // PARA: Ensure exclusive container assignment when updating
+  const newProjectId = project_id !== undefined ? project_id : existing.project_id;
+  const newAreaId = area_id !== undefined ? area_id : existing.area_id;
+  const newResourceId = resource_id !== undefined ? resource_id : existing.resource_id;
+  const containers = [newProjectId, newAreaId, newResourceId].filter(Boolean);
+  if (containers.length > 1) {
+    return res.status(400).json({ error: 'Eine Notiz kann nur einem Container (Projekt, Area oder Ressource) zugeordnet werden.' });
   }
 
   const updates = [];
@@ -180,6 +221,10 @@ router.put('/:id', asyncHandler(async (req, res) => {
     updates.push('area_id = ?');
     params.push(area_id);
   }
+  if (resource_id !== undefined) {
+    updates.push('resource_id = ?');
+    params.push(resource_id);
+  }
   if (position !== undefined) {
     updates.push('position = ?');
     params.push(position);
@@ -194,7 +239,18 @@ router.put('/:id', asyncHandler(async (req, res) => {
   db.prepare(`UPDATE notes SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`)
     .run(...params);
 
-  const note = db.prepare('SELECT * FROM notes WHERE id = ?').get(id);
+  // Fetch note with joined names for immediate UI update
+  const note = db.prepare(`
+    SELECT n.*,
+           p.name as project_name, p.color as project_color,
+           a.name as area_name, a.color as area_color,
+           r.title as resource_name, r.category as resource_category
+    FROM notes n
+    LEFT JOIN projects p ON n.project_id = p.id
+    LEFT JOIN areas a ON n.area_id = a.id
+    LEFT JOIN resources r ON n.resource_id = r.id
+    WHERE n.id = ?
+  `).get(id);
 
   res.json({
     note: {
@@ -221,7 +277,18 @@ router.put('/:id/pin', asyncHandler(async (req, res) => {
 
   db.prepare('UPDATE notes SET is_pinned = ? WHERE id = ?').run(newPinned, id);
 
-  const note = db.prepare('SELECT * FROM notes WHERE id = ?').get(id);
+  // Fetch note with joined names for immediate UI update
+  const note = db.prepare(`
+    SELECT n.*,
+           p.name as project_name, p.color as project_color,
+           a.name as area_name, a.color as area_color,
+           r.title as resource_name, r.category as resource_category
+    FROM notes n
+    LEFT JOIN projects p ON n.project_id = p.id
+    LEFT JOIN areas a ON n.area_id = a.id
+    LEFT JOIN resources r ON n.resource_id = r.id
+    WHERE n.id = ?
+  `).get(id);
 
   res.json({
     note: {

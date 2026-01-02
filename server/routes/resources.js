@@ -8,9 +8,10 @@ const router = express.Router();
 router.use(requireAuth);
 
 // Get all resources
+// PARA: Resources are thematic collections, linked to multiple Projects (n:m), NOT to Areas
 router.get('/', asyncHandler(async (req, res) => {
   const userId = req.userId;
-  const { include_archived, category, search, area_id, project_id } = req.query;
+  const { include_archived, category, search, project_id } = req.query;
 
   let query = 'SELECT * FROM resources WHERE user_id = ?';
   const params = [userId];
@@ -24,13 +25,9 @@ router.get('/', asyncHandler(async (req, res) => {
     params.push(category);
   }
 
-  if (area_id) {
-    query += ' AND area_id = ?';
-    params.push(area_id);
-  }
-
+  // Filter by project using junction table
   if (project_id) {
-    query += ' AND project_id = ?';
+    query += ' AND id IN (SELECT resource_id FROM project_resources WHERE project_id = ?)';
     params.push(project_id);
   }
 
@@ -43,11 +40,21 @@ router.get('/', asyncHandler(async (req, res) => {
 
   const resources = db.prepare(query).all(...params);
 
-  // Parse tags
-  const parsed = resources.map(r => ({
-    ...r,
-    tags: JSON.parse(r.tags || '[]')
-  }));
+  // Get linked projects for each resource
+  const parsed = resources.map(r => {
+    const linkedProjects = db.prepare(`
+      SELECT p.id, p.name, p.color
+      FROM projects p
+      JOIN project_resources pr ON p.id = pr.project_id
+      WHERE pr.resource_id = ?
+    `).all(r.id);
+
+    return {
+      ...r,
+      tags: JSON.parse(r.tags || '[]'),
+      projects: linkedProjects
+    };
+  });
 
   res.json(parsed);
 }));
@@ -85,17 +92,18 @@ router.get('/:id', asyncHandler(async (req, res) => {
 }));
 
 // Create resource
+// PARA: Resources can be linked to multiple Projects (n:m), NOT to Areas
 router.post('/', asyncHandler(async (req, res) => {
   const userId = req.userId;
-  const { title, content, url, tags, category, area_id, project_id } = req.body;
+  const { title, content, url, tags, category, project_ids } = req.body;
 
   if (!title || !title.trim()) {
     return res.status(400).json({ error: 'Titel ist erforderlich' });
   }
 
   const result = db.prepare(`
-    INSERT INTO resources (user_id, title, content, url, tags, category, area_id, project_id, position)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM resources WHERE user_id = ?))
+    INSERT INTO resources (user_id, title, content, url, tags, category, position)
+    VALUES (?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM resources WHERE user_id = ?))
   `).run(
     userId,
     title.trim(),
@@ -103,23 +111,42 @@ router.post('/', asyncHandler(async (req, res) => {
     url || null,
     JSON.stringify(tags || []),
     category || null,
-    area_id || null,
-    project_id || null,
     userId
   );
 
-  const resource = db.prepare('SELECT * FROM resources WHERE id = ?').get(result.lastInsertRowid);
+  const resourceId = result.lastInsertRowid;
+
+  // Link to projects using junction table
+  if (project_ids && Array.isArray(project_ids) && project_ids.length > 0) {
+    const insertLink = db.prepare('INSERT OR IGNORE INTO project_resources (project_id, resource_id) VALUES (?, ?)');
+    for (const projectId of project_ids) {
+      insertLink.run(projectId, resourceId);
+    }
+  }
+
+  const resource = db.prepare('SELECT * FROM resources WHERE id = ?').get(resourceId);
+
+  // Get linked projects
+  const linkedProjects = db.prepare(`
+    SELECT p.id, p.name, p.color
+    FROM projects p
+    JOIN project_resources pr ON p.id = pr.project_id
+    WHERE pr.resource_id = ?
+  `).all(resourceId);
+
   res.status(201).json({
     ...resource,
-    tags: JSON.parse(resource.tags || '[]')
+    tags: JSON.parse(resource.tags || '[]'),
+    projects: linkedProjects
   });
 }));
 
 // Update resource
+// PARA: Resources can be linked to multiple Projects (n:m), NOT to Areas
 router.put('/:id', asyncHandler(async (req, res) => {
   const userId = req.userId;
   const { id } = req.params;
-  const { title, content, url, tags, category, area_id, project_id, is_archived, position } = req.body;
+  const { title, content, url, tags, category, project_ids, is_archived, position } = req.body;
 
   const existing = db.prepare('SELECT * FROM resources WHERE id = ? AND user_id = ?').get(id, userId);
   if (!existing) {
@@ -132,8 +159,6 @@ router.put('/:id', asyncHandler(async (req, res) => {
   if (url !== undefined) updates.url = url;
   if (tags !== undefined) updates.tags = JSON.stringify(tags);
   if (category !== undefined) updates.category = category;
-  if (area_id !== undefined) updates.area_id = area_id;
-  if (project_id !== undefined) updates.project_id = project_id;
   if (is_archived !== undefined) updates.is_archived = is_archived ? 1 : 0;
   if (position !== undefined) updates.position = position;
 
@@ -143,10 +168,33 @@ router.put('/:id', asyncHandler(async (req, res) => {
     db.prepare(`UPDATE resources SET ${setClause} WHERE id = ?`).run(...values, id);
   }
 
+  // Update project links if provided
+  if (project_ids !== undefined && Array.isArray(project_ids)) {
+    // Remove existing links
+    db.prepare('DELETE FROM project_resources WHERE resource_id = ?').run(id);
+    // Add new links
+    if (project_ids.length > 0) {
+      const insertLink = db.prepare('INSERT OR IGNORE INTO project_resources (project_id, resource_id) VALUES (?, ?)');
+      for (const projectId of project_ids) {
+        insertLink.run(projectId, id);
+      }
+    }
+  }
+
   const resource = db.prepare('SELECT * FROM resources WHERE id = ?').get(id);
+
+  // Get linked projects
+  const linkedProjects = db.prepare(`
+    SELECT p.id, p.name, p.color
+    FROM projects p
+    JOIN project_resources pr ON p.id = pr.project_id
+    WHERE pr.resource_id = ?
+  `).all(id);
+
   res.json({
     ...resource,
-    tags: JSON.parse(resource.tags || '[]')
+    tags: JSON.parse(resource.tags || '[]'),
+    projects: linkedProjects
   });
 }));
 
@@ -160,6 +208,8 @@ router.delete('/:id', asyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'Ressource nicht gefunden' });
   }
 
+  // Remove project links (CASCADE should handle this but being explicit)
+  db.prepare('DELETE FROM project_resources WHERE resource_id = ?').run(id);
   db.prepare('DELETE FROM resources WHERE id = ?').run(id);
   res.json({ success: true });
 }));

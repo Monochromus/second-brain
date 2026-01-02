@@ -1,4 +1,4 @@
-import { Pin, MoreHorizontal, Trash2, Edit, Folder, FolderOpen } from 'lucide-react';
+import { Pin, MoreHorizontal, Trash2, Edit, Folder, FolderOpen, BookOpen } from 'lucide-react';
 import { useState } from 'react';
 import { cn, stripHtml, truncate, formatTimeAgo } from '../../lib/utils';
 
@@ -82,8 +82,8 @@ export default function NoteCard({ note, onEdit, onDelete, onTogglePin }) {
         </p>
       )}
 
-      {/* Project/Area badge */}
-      {(note.project_name || note.area_name) && (
+      {/* PARA Container badge (Project OR Area OR Resource - exclusive) */}
+      {(note.project_name || note.area_name || note.resource_name) && (
         <div className="flex items-center gap-1.5 mb-2">
           {note.project_name && (
             <span
@@ -107,6 +107,14 @@ export default function NoteCard({ note, onEdit, onDelete, onTogglePin }) {
             >
               <FolderOpen className="w-3 h-3" />
               {note.area_name}
+            </span>
+          )}
+          {note.resource_name && (
+            <span
+              className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-surface-secondary text-text-secondary"
+            >
+              <BookOpen className="w-3 h-3" />
+              {note.resource_name}
             </span>
           )}
         </div>

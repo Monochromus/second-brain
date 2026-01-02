@@ -44,33 +44,58 @@ function createOpenAIClient(userId) {
 const SYSTEM_PROMPT = `Du bist der AI-Assistent im "Pocket Assistent" Produktivitätstool.
 Du hilfst dem Nutzer, Aufgaben zu organisieren, Termine zu planen und Notizen zu verwalten.
 
+PARA-SYSTEM (Tiago Forte):
+Das PARA-System ist die Grundstruktur dieser App. Halte dich STRIKT an diese Regeln:
+
+1. AREAS (Verantwortungsbereiche):
+   - Langfristige Verantwortungen OHNE Deadline (z.B. "Gesundheit", "Karriere", "Familie")
+   - Areas enthalten: Projekte und Notizen
+   - Areas haben KEINE direkten Todos (Todos gehören zu Projekten)
+   - Areas haben KEINE Ressourcen (Ressourcen sind thematisch, nicht Verantwortungen)
+
+2. PROJECTS (Projekte):
+   - Kurzfristige Vorhaben MIT Ziel und optionaler Deadline
+   - Jedes Projekt gehört zu EINER Area
+   - Projekte enthalten: Todos, Notizen, verknüpfte Ressourcen
+   - Bei Projekterstellung: IMMER erst list_areas aufrufen und passende Area zuordnen
+
+3. RESOURCES (Ressourcen/Wissensspeicher):
+   - Thematische Sammlungen und Referenzmaterial (z.B. "Rezepte", "Programmierung")
+   - Ressourcen können mit MEHREREN Projekten verknüpft sein
+   - Ressourcen haben KEINE Area-Zuordnung
+   - Ressourcen können Notizen enthalten
+
+4. TODOS (Aufgaben):
+   - Todos gehören IMMER zu einem Projekt (nie direkt zu einer Area)
+   - Bei Todo-Erstellung: IMMER project_id angeben wenn möglich
+
+5. NOTES (Notizen):
+   - Eine Notiz gehört zu GENAU EINEM Container: Projekt ODER Area ODER Ressource
+   - NIE mehrere Container gleichzeitig
+
 Deine Fähigkeiten:
-- Todos erstellen, bearbeiten, priorisieren, abschließen, löschen
-- Notizen erstellen, bearbeiten und durchsuchen
-- Projekte erstellen und verwalten (mit automatischer Area-Zuordnung)
+- Todos erstellen (immer mit project_id), bearbeiten, priorisieren, abschließen, löschen
+- Notizen erstellen (mit project_id ODER area_id ODER resource_id), bearbeiten und durchsuchen
+- Projekte erstellen (immer mit area_id) und verwalten
+- Ressourcen erstellen und mit Projekten verknüpfen
 - Kalendertermine abrufen und neue erstellen
-- Items miteinander verknüpfen
-- Areas verwalten - dauerhafte Verantwortungsbereiche nach dem PARA-Prinzip wie Arbeit, Gesundheit, Familie
-- Widgets erstellen, anpassen und löschen (interaktive Mini-Apps wie Uhren, Timer, Rechner, Countdowns)
+- Areas verwalten
+- Widgets erstellen, anpassen und löschen
 
 WICHTIGE ANTWORT-REGELN:
 - Antworte IMMER sehr kurz und prägnant (1-2 Sätze maximal)
 - KEINE Links oder URLs in deinen Antworten - die werden separat angezeigt
 - KEINE Listen, Aufzählungen oder formatierte Texte
 - Bestätige Aktionen mit einem einfachen kurzen Satz
-- Nach web_research: Antworte NUR mit einem SEHR kurzen Satz (max 10 Wörter), z.B. "Hier sind die Recherche-Ergebnisse." oder "Ich habe das für dich recherchiert." - Die Details werden dem Nutzer automatisch in einer separaten Box angezeigt.
+- Nach web_research: Antworte NUR mit einem SEHR kurzen Satz (max 10 Wörter)
 
 Weitere Regeln:
 1. Führe Aktionen direkt aus, frage nur bei echten Unklarheiten nach
-2. Wenn der Nutzer etwas Unklares sagt, interpretiere es bestmöglich
-3. PARA-Verknüpfungen: Verknüpfe IMMER automatisch - nutze list_projects/list_areas um passende zuzuordnen. Erstelle Todo mit project_id wenn ein passendes Projekt existiert. Bei neuem Projekt mit Todos: erst Projekt erstellen, dann Todos mit dessen project_id.
-4. Nutze Kontext aus bestehenden Projekten und Todos
-5. Bei Zeitangaben wie "morgen", "nächste Woche" berechne das korrekte Datum
-6. Antworte immer auf Deutsch
-7. Bei Widget-Anfragen: Nutze list_widgets um bestehende Widgets zu sehen, create_widget für neue, update_widget zum Ändern
-8. Bei Projekterstellung: Ordne das Projekt automatisch einer passenden Area zu. Nutze zuerst list_areas um bestehende Areas zu sehen. Wenn keine passende Area existiert, erstelle eine neue mit create_area, bevor du das Projekt erstellst.
-9. Nutze web_research wenn der Nutzer nach aktuellen Informationen fragt, "recherchiere", "suche im Web", "was gibt es Neues zu..." sagt, oder du Fakten verifizieren möchtest
-10. WICHTIG: Führe maximal 1-2 web_research Aufrufe pro Nutzeranfrage durch. Nach der Recherche antworte sofort - mache KEINE weiteren Recherchen.
+2. PARA-Verknüpfungen: IMMER zuerst list_areas/list_projects aufrufen um passende Container zu finden
+3. Bei Zeitangaben wie "morgen", "nächste Woche" berechne das korrekte Datum
+4. Antworte immer auf Deutsch
+5. Nutze web_research wenn der Nutzer nach aktuellen Informationen fragt
+6. WICHTIG: Führe maximal 1-2 web_research Aufrufe pro Nutzeranfrage durch
 
 Heute ist ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.`;
 
@@ -79,7 +104,7 @@ const tools = [
     type: "function",
     function: {
       name: "create_todo",
-      description: "Erstellt ein neues Todo/eine neue Aufgabe",
+      description: "Erstellt ein neues Todo/eine neue Aufgabe. PARA: Todos gehören IMMER zu einem Projekt, nie direkt zu einer Area.",
       parameters: {
         type: "object",
         properties: {
@@ -88,7 +113,7 @@ const tools = [
           priority: { type: "integer", minimum: 1, maximum: 5, description: "1=höchste, 5=niedrigste Priorität. Standard ist 3." },
           due_date: { type: "string", description: "Fälligkeitsdatum im Format YYYY-MM-DD" },
           due_time: { type: "string", description: "Uhrzeit im Format HH:MM" },
-          project_id: { type: "integer", description: "ID des Projekts, dem das Todo zugeordnet werden soll" }
+          project_id: { type: "integer", description: "ID des Projekts, dem das Todo zugeordnet werden soll. WICHTIG: Immer angeben wenn möglich!" }
         },
         required: ["title"]
       }
@@ -163,14 +188,16 @@ const tools = [
     type: "function",
     function: {
       name: "create_note",
-      description: "Erstellt eine neue Notiz",
+      description: "Erstellt eine neue Notiz. PARA: Eine Notiz gehört zu GENAU EINEM Container (Projekt ODER Area ODER Ressource).",
       parameters: {
         type: "object",
         properties: {
           title: { type: "string", description: "Titel der Notiz" },
           content: { type: "string", description: "Inhalt der Notiz (kann Markdown sein)" },
           tags: { type: "array", items: { type: "string" }, description: "Tags für die Notiz" },
-          project_id: { type: "integer", description: "Projekt-ID für Zuordnung" },
+          project_id: { type: "integer", description: "Projekt-ID für Zuordnung (exklusiv mit area_id und resource_id)" },
+          area_id: { type: "integer", description: "Area-ID für Zuordnung (exklusiv mit project_id und resource_id)" },
+          resource_id: { type: "integer", description: "Ressource-ID für Zuordnung (exklusiv mit project_id und area_id)" },
           color: { type: "string", description: "Hex-Farbcode für die Notiz-Karte, z.B. #FEF3C7" }
         },
         required: ["title"]
@@ -181,7 +208,7 @@ const tools = [
     type: "function",
     function: {
       name: "update_note",
-      description: "Aktualisiert eine bestehende Notiz",
+      description: "Aktualisiert eine bestehende Notiz. PARA: Nur EINEN Container zuweisen.",
       parameters: {
         type: "object",
         properties: {
@@ -189,7 +216,9 @@ const tools = [
           title: { type: "string" },
           content: { type: "string" },
           tags: { type: "array", items: { type: "string" } },
-          project_id: { type: "integer" },
+          project_id: { type: "integer", description: "Projekt-ID (setzt area_id und resource_id auf null)" },
+          area_id: { type: "integer", description: "Area-ID (setzt project_id und resource_id auf null)" },
+          resource_id: { type: "integer", description: "Ressource-ID (setzt project_id und area_id auf null)" },
           color: { type: "string" },
           is_pinned: { type: "boolean", description: "Notiz anheften" }
         },
@@ -374,7 +403,7 @@ const tools = [
     type: "function",
     function: {
       name: "create_resource",
-      description: "Erstellt eine neue Ressource im Wissensspeicher. Ressourcen sind Informationen zu Themen wie Rezepte, Anleitungen, Links.",
+      description: "Erstellt eine neue Ressource im Wissensspeicher. PARA: Ressourcen sind thematische Sammlungen (z.B. Rezepte, Anleitungen) und können mit MEHREREN Projekten verknüpft werden. Ressourcen haben KEINE Area-Zuordnung.",
       parameters: {
         type: "object",
         properties: {
@@ -382,7 +411,8 @@ const tools = [
           content: { type: "string", description: "Inhalt (kann Markdown sein)" },
           url: { type: "string", description: "Optionaler Link" },
           tags: { type: "array", items: { type: "string" }, description: "Tags zur Kategorisierung" },
-          category: { type: "string", description: "Kategorie wie 'Rezepte', 'Programmierung', 'Reisen'" }
+          category: { type: "string", description: "Kategorie wie 'Rezepte', 'Programmierung', 'Reisen'" },
+          project_ids: { type: "array", items: { type: "integer" }, description: "IDs der Projekte, mit denen die Ressource verknüpft werden soll" }
         },
         required: ["title"]
       }
@@ -631,9 +661,15 @@ async function executeToolCall(toolName, args, userId) {
       }
 
       case 'create_note': {
+        // PARA: Ensure exclusive container assignment
+        const containers = [args.project_id, args.area_id, args.resource_id].filter(Boolean);
+        if (containers.length > 1) {
+          return { success: false, error: 'PARA-Fehler: Eine Notiz kann nur einem Container zugeordnet werden.' };
+        }
+
         const result = db.prepare(`
-          INSERT INTO notes (user_id, title, content, tags, color, project_id, position)
-          VALUES (?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM notes WHERE user_id = ?))
+          INSERT INTO notes (user_id, title, content, tags, color, project_id, area_id, resource_id, position)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM notes WHERE user_id = ?))
         `).run(
           userId,
           args.title,
@@ -641,6 +677,8 @@ async function executeToolCall(toolName, args, userId) {
           JSON.stringify(args.tags || []),
           args.color || null,
           args.project_id || null,
+          args.area_id || null,
+          args.resource_id || null,
           userId
         );
         const note = db.prepare('SELECT * FROM notes WHERE id = ?').get(result.lastInsertRowid);
@@ -912,6 +950,7 @@ async function executeToolCall(toolName, args, userId) {
       }
 
       case 'create_resource': {
+        // PARA: Resources can be linked to multiple Projects (n:m)
         const result = db.prepare(`
           INSERT INTO resources (user_id, title, content, url, tags, category, position)
           VALUES (?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM resources WHERE user_id = ?))
@@ -924,7 +963,18 @@ async function executeToolCall(toolName, args, userId) {
           args.category || null,
           userId
         );
-        const resource = db.prepare('SELECT * FROM resources WHERE id = ?').get(result.lastInsertRowid);
+
+        const resourceId = result.lastInsertRowid;
+
+        // Link to projects using junction table
+        if (args.project_ids && Array.isArray(args.project_ids) && args.project_ids.length > 0) {
+          const insertLink = db.prepare('INSERT OR IGNORE INTO project_resources (project_id, resource_id) VALUES (?, ?)');
+          for (const projectId of args.project_ids) {
+            insertLink.run(projectId, resourceId);
+          }
+        }
+
+        const resource = db.prepare('SELECT * FROM resources WHERE id = ?').get(resourceId);
         return { success: true, resource, message: `Ressource "${args.title}" erstellt.` };
       }
 

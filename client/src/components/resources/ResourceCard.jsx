@@ -1,4 +1,4 @@
-import { ExternalLink, MoreVertical, Edit, Trash, Tag } from 'lucide-react';
+import { ExternalLink, MoreVertical, Edit, Trash, Tag, Folder } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 export default function ResourceCard({ resource, onEdit, onDelete }) {
@@ -87,6 +87,25 @@ export default function ResourceCard({ resource, onEdit, onDelete }) {
         <p className="text-sm text-text-secondary mt-2 line-clamp-2">
           {resource.content}
         </p>
+      )}
+
+      {/* PARA: Show linked Projects */}
+      {resource.projects && resource.projects.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-2">
+          {resource.projects.map((project) => (
+            <span
+              key={project.id}
+              className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
+              style={{
+                backgroundColor: project.color ? `${project.color}20` : 'var(--surface-secondary)',
+                color: project.color || 'var(--text-secondary)'
+              }}
+            >
+              <Folder className="w-3 h-3" />
+              {project.name}
+            </span>
+          ))}
+        </div>
       )}
 
       {resource.tags && resource.tags.length > 0 && (

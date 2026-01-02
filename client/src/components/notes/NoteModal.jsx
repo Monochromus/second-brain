@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Modal from '../shared/Modal';
 import NoteEditor from './NoteEditor';
 import { useProjects } from '../../hooks/useProjects';
 import { useAreas } from '../../hooks/useAreas';
+import { useResources } from '../../hooks/useResources';
 import { useAutosave } from '../../hooks/useAutosave';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, Folder, FolderOpen, BookOpen } from 'lucide-react';
 
 const colorOptions = [
   { value: '', label: 'Standard' },
@@ -16,9 +17,18 @@ const colorOptions = [
   { value: '#FED7AA', label: 'Orange' }
 ];
 
-export default function NoteModal({ isOpen, onClose, note, onSave, defaultProjectId, defaultAreaId }) {
+// PARA: Notes belong to exactly ONE container (Project, Area, or Resource)
+const CONTAINER_TYPES = [
+  { value: 'none', label: 'Kein Container', icon: null },
+  { value: 'project', label: 'Projekt', icon: Folder },
+  { value: 'area', label: 'Area', icon: FolderOpen },
+  { value: 'resource', label: 'Ressource', icon: BookOpen }
+];
+
+export default function NoteModal({ isOpen, onClose, note, onSave, defaultProjectId, defaultAreaId, defaultResourceId }) {
   const { projects } = useProjects({ status: 'active' });
   const { areas } = useAreas();
+  const { resources } = useResources();
   const [formData, setFormData] = useState({
     title: '',
     content: '',
@@ -26,8 +36,10 @@ export default function NoteModal({ isOpen, onClose, note, onSave, defaultProjec
     color: '',
     project_id: '',
     area_id: '',
+    resource_id: '',
     is_pinned: false
   });
+  const [containerType, setContainerType] = useState('none');
   const [tagInput, setTagInput] = useState('');
   const [saving, setSaving] = useState(false);
   const isEditing = Boolean(note);
@@ -38,11 +50,20 @@ export default function NoteModal({ isOpen, onClose, note, onSave, defaultProjec
       ...data,
       project_id: data.project_id || null,
       area_id: data.area_id || null,
+      resource_id: data.resource_id || null,
       color: data.color || null
     });
   }, [onSave]);
 
   const { saveImmediately } = useAutosave(handleAutosave, 500);
+
+  // Determine container type from existing data
+  const determineContainerType = useCallback((projectId, areaId, resourceId) => {
+    if (projectId) return 'project';
+    if (areaId) return 'area';
+    if (resourceId) return 'resource';
+    return 'none';
+  }, []);
 
   useEffect(() => {
     if (note) {
@@ -53,8 +74,10 @@ export default function NoteModal({ isOpen, onClose, note, onSave, defaultProjec
         color: note.color || '',
         project_id: note.project_id || '',
         area_id: note.area_id || '',
+        resource_id: note.resource_id || '',
         is_pinned: note.is_pinned || false
       });
+      setContainerType(determineContainerType(note.project_id, note.area_id, note.resource_id));
     } else {
       setFormData({
         title: '',
@@ -63,16 +86,46 @@ export default function NoteModal({ isOpen, onClose, note, onSave, defaultProjec
         color: '',
         project_id: defaultProjectId || '',
         area_id: defaultAreaId || '',
+        resource_id: defaultResourceId || '',
         is_pinned: false
       });
+      setContainerType(determineContainerType(defaultProjectId, defaultAreaId, defaultResourceId));
     }
     setTagInput('');
-  }, [note, isOpen, defaultProjectId, defaultAreaId]);
+  }, [note, isOpen, defaultProjectId, defaultAreaId, defaultResourceId, determineContainerType]);
 
   const handleChange = (field, value) => {
     const newData = { ...formData, [field]: value };
     setFormData(newData);
   };
+
+  // PARA: When container type changes, clear all container IDs
+  const handleContainerTypeChange = (newType) => {
+    setContainerType(newType);
+    setFormData(prev => ({
+      ...prev,
+      project_id: '',
+      area_id: '',
+      resource_id: ''
+    }));
+  };
+
+  // Handle container ID selection
+  const handleContainerIdChange = (value) => {
+    const updates = { project_id: '', area_id: '', resource_id: '' };
+    if (containerType === 'project') updates.project_id = value;
+    else if (containerType === 'area') updates.area_id = value;
+    else if (containerType === 'resource') updates.resource_id = value;
+    setFormData(prev => ({ ...prev, ...updates }));
+  };
+
+  // Get current container ID based on type
+  const currentContainerId = useMemo(() => {
+    if (containerType === 'project') return formData.project_id;
+    if (containerType === 'area') return formData.area_id;
+    if (containerType === 'resource') return formData.resource_id;
+    return '';
+  }, [containerType, formData.project_id, formData.area_id, formData.resource_id]);
 
   const handleClose = async () => {
     if (isEditing && formData.title.trim()) {
@@ -116,6 +169,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, defaultProjec
         ...formData,
         project_id: formData.project_id || null,
         area_id: formData.area_id || null,
+        resource_id: formData.resource_id || null,
         color: formData.color || null
       });
       onClose();
@@ -191,38 +245,58 @@ export default function NoteModal({ isOpen, onClose, note, onSave, defaultProjec
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="label">Projekt</label>
+        {/* PARA: Exclusive container selection */}
+        <div>
+          <label className="label">Zuordnung (PARA)</label>
+          <div className="flex gap-2 mb-2">
+            {CONTAINER_TYPES.map((type) => {
+              const Icon = type.icon;
+              return (
+                <button
+                  key={type.value}
+                  type="button"
+                  onClick={() => handleContainerTypeChange(type.value)}
+                  className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
+                    containerType === type.value
+                      ? 'border-accent bg-accent/10 text-accent'
+                      : 'border-border hover:border-accent/50 text-text-secondary'
+                  }`}
+                >
+                  {Icon && <Icon className="w-4 h-4" />}
+                  {type.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {containerType !== 'none' && (
             <select
-              value={formData.project_id}
-              onChange={(e) => handleChange('project_id', e.target.value)}
+              value={currentContainerId}
+              onChange={(e) => handleContainerIdChange(e.target.value)}
               className="input"
             >
-              <option value="">Kein Projekt</option>
-              {projects.map((project) => (
+              <option value="">
+                {containerType === 'project' && 'Projekt wählen...'}
+                {containerType === 'area' && 'Area wählen...'}
+                {containerType === 'resource' && 'Ressource wählen...'}
+              </option>
+              {containerType === 'project' && projects.map((project) => (
                 <option key={project.id} value={project.id}>
                   {project.name}
                 </option>
               ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="label">Area</label>
-            <select
-              value={formData.area_id}
-              onChange={(e) => handleChange('area_id', e.target.value)}
-              className="input"
-            >
-              <option value="">Keine Area</option>
-              {areas.map((area) => (
+              {containerType === 'area' && areas.map((area) => (
                 <option key={area.id} value={area.id}>
                   {area.name}
                 </option>
               ))}
+              {containerType === 'resource' && resources.map((resource) => (
+                <option key={resource.id} value={resource.id}>
+                  {resource.title}
+                </option>
+              ))}
             </select>
-          </div>
+          )}
         </div>
 
         <div>

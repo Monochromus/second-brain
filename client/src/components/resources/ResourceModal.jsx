@@ -1,14 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, Plus, Tag } from 'lucide-react';
+import { X, Plus, Tag, Folder } from 'lucide-react';
 import { useAutosave } from '../../hooks/useAutosave';
+import { useProjects } from '../../hooks/useProjects';
 
+// PARA: Resources can be linked to multiple Projects (n:m)
 export default function ResourceModal({ isOpen, onClose, resource, onSave, categories = [] }) {
+  const { projects } = useProjects({ status: 'active' });
   const [formData, setFormData] = useState({
     title: '',
     content: '',
     url: '',
     category: '',
-    tags: []
+    tags: [],
+    project_ids: []
   });
   const [tagInput, setTagInput] = useState('');
   const [saving, setSaving] = useState(false);
@@ -28,7 +32,8 @@ export default function ResourceModal({ isOpen, onClose, resource, onSave, categ
         content: resource.content || '',
         url: resource.url || '',
         category: resource.category || '',
-        tags: resource.tags || []
+        tags: resource.tags || [],
+        project_ids: resource.projects?.map(p => p.id) || []
       });
     } else {
       setFormData({
@@ -36,7 +41,8 @@ export default function ResourceModal({ isOpen, onClose, resource, onSave, categ
         content: '',
         url: '',
         category: '',
-        tags: []
+        tags: [],
+        project_ids: []
       });
     }
     setTagInput('');
@@ -45,6 +51,16 @@ export default function ResourceModal({ isOpen, onClose, resource, onSave, categ
   const handleChange = (field, value) => {
     const newData = { ...formData, [field]: value };
     setFormData(newData);
+  };
+
+  // Toggle project selection (multi-select)
+  const toggleProject = (projectId) => {
+    setFormData(prev => ({
+      ...prev,
+      project_ids: prev.project_ids.includes(projectId)
+        ? prev.project_ids.filter(id => id !== projectId)
+        : [...prev.project_ids, projectId]
+    }));
   };
 
   const handleClose = async () => {
@@ -167,6 +183,33 @@ export default function ResourceModal({ isOpen, onClose, resource, onSave, categ
                 <option key={cat.category} value={cat.category} />
               ))}
             </datalist>
+          </div>
+
+          {/* PARA: Resources can be linked to multiple Projects */}
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">
+              Verknüpfte Projekte
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {projects.map(project => (
+                <button
+                  key={project.id}
+                  type="button"
+                  onClick={() => toggleProject(project.id)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${
+                    formData.project_ids.includes(project.id)
+                      ? 'border-accent bg-accent/10 text-accent'
+                      : 'border-border hover:border-accent/50 text-text-secondary'
+                  }`}
+                >
+                  <Folder className="w-3.5 h-3.5" />
+                  {project.name}
+                </button>
+              ))}
+              {projects.length === 0 && (
+                <span className="text-sm text-text-secondary">Keine aktiven Projekte</span>
+              )}
+            </div>
           </div>
 
           <div>

@@ -17,6 +17,7 @@ if (!fs.existsSync(areasUploadDir)) {
 router.use(requireAuth);
 
 // Get all areas
+// PARA: Areas contain Projects and Notes directly. Todos belong to Projects, Resources are separate.
 router.get('/', asyncHandler(async (req, res) => {
   const userId = req.userId;
   const { include_archived } = req.query;
@@ -24,9 +25,7 @@ router.get('/', asyncHandler(async (req, res) => {
   let query = `
     SELECT a.*,
       (SELECT COUNT(*) FROM projects WHERE area_id = a.id AND status != 'archived') as project_count,
-      (SELECT COUNT(*) FROM todos WHERE area_id = a.id AND is_archived = 0) as todo_count,
-      (SELECT COUNT(*) FROM notes WHERE area_id = a.id AND is_archived = 0) as note_count,
-      (SELECT COUNT(*) FROM resources WHERE area_id = a.id AND is_archived = 0) as resource_count
+      (SELECT COUNT(*) FROM notes WHERE area_id = a.id AND is_archived = 0) as note_count
     FROM areas a
     WHERE a.user_id = ?
   `;
@@ -42,6 +41,7 @@ router.get('/', asyncHandler(async (req, res) => {
 }));
 
 // Get single area with items
+// PARA: Areas contain Projects and Notes. Todos belong to Projects (not Areas). Resources are separate.
 router.get('/:id', asyncHandler(async (req, res) => {
   const userId = req.userId;
   const { id } = req.params;
@@ -54,34 +54,25 @@ router.get('/:id', asyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'Area nicht gefunden' });
   }
 
-  // Get related items
+  // Get related items (PARA compliant)
   const projects = db.prepare(`
-    SELECT * FROM projects WHERE area_id = ? AND user_id = ? AND status != 'archived'
-    ORDER BY position ASC
-  `).all(id, userId);
-
-  const todos = db.prepare(`
-    SELECT * FROM todos WHERE area_id = ? AND user_id = ? AND is_archived = 0
-    ORDER BY priority ASC, due_date ASC NULLS LAST
+    SELECT p.*,
+      (SELECT COUNT(*) FROM todos WHERE project_id = p.id AND status != 'done') as open_todos,
+      (SELECT COUNT(*) FROM todos WHERE project_id = p.id) as total_todos
+    FROM projects p
+    WHERE p.area_id = ? AND p.user_id = ? AND p.status != 'archived'
+    ORDER BY p.created_at DESC
   `).all(id, userId);
 
   const notes = db.prepare(`
     SELECT * FROM notes WHERE area_id = ? AND user_id = ? AND is_archived = 0
-    ORDER BY is_pinned DESC, updated_at DESC
+    ORDER BY is_pinned DESC, created_at DESC
   `).all(id, userId).map(n => ({
     ...n,
     tags: JSON.parse(n.tags || '[]')
   }));
 
-  const resources = db.prepare(`
-    SELECT * FROM resources WHERE area_id = ? AND user_id = ? AND is_archived = 0
-    ORDER BY position ASC, updated_at DESC
-  `).all(id, userId).map(r => ({
-    ...r,
-    tags: JSON.parse(r.tags || '[]')
-  }));
-
-  res.json({ ...area, projects, todos, notes, resources });
+  res.json({ ...area, projects, notes });
 }));
 
 // Create area
@@ -132,6 +123,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
 }));
 
 // Delete area
+// PARA: Only unlink Projects and Notes (Todos belong to Projects, Resources are separate)
 router.delete('/:id', asyncHandler(async (req, res) => {
   const userId = req.userId;
   const { id } = req.params;
@@ -141,11 +133,9 @@ router.delete('/:id', asyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'Area nicht gefunden' });
   }
 
-  // Unlink items (don't delete them)
+  // Unlink items (don't delete them) - PARA compliant
   db.prepare('UPDATE projects SET area_id = NULL WHERE area_id = ?').run(id);
-  db.prepare('UPDATE todos SET area_id = NULL WHERE area_id = ?').run(id);
   db.prepare('UPDATE notes SET area_id = NULL WHERE area_id = ?').run(id);
-  db.prepare('UPDATE resources SET area_id = NULL WHERE area_id = ?').run(id);
 
   db.prepare('DELETE FROM areas WHERE id = ?').run(id);
   res.json({ success: true });
