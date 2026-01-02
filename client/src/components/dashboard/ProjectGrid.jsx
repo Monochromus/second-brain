@@ -1,8 +1,9 @@
 import { Folder, Plus, ChevronRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import ProjectCard from '../projects/ProjectCard';
 
 export default function ProjectGrid({ projects, loading, onEdit, onDelete, onArchive, onAdd }) {
+  const navigate = useNavigate();
   if (loading) {
     return (
       <div className="notebook-section p-4">
@@ -58,7 +59,10 @@ export default function ProjectGrid({ projects, loading, onEdit, onDelete, onArc
 
         {projects.length > 4 && (
           <div className="mt-4 text-center">
-            <button className="text-sm text-text-secondary hover:text-accent flex items-center gap-1 mx-auto">
+            <button
+              onClick={() => navigate('/projects')}
+              className="text-sm text-text-secondary hover:text-accent flex items-center gap-1 mx-auto"
+            >
               Alle {projects.length} Projekte anzeigen
               <ChevronRight className="w-4 h-4" />
             </button>

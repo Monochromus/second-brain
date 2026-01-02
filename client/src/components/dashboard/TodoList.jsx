@@ -29,6 +29,9 @@ export default function TodoList({
 }) {
   const [activeId, setActiveId] = useState(null);
   const [showCompleted, setShowCompleted] = useState(false);
+  const [showAllOpen, setShowAllOpen] = useState(false);
+
+  const MAX_VISIBLE_TODOS = 10;
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -41,11 +44,13 @@ export default function TodoList({
     })
   );
 
-  const { openTodos, doneTodos } = useMemo(() => {
+  const { openTodos, doneTodos, visibleOpenTodos, hasMoreOpenTodos } = useMemo(() => {
     const open = todos.filter((t) => t.status !== 'done');
     const done = todos.filter((t) => t.status === 'done');
-    return { openTodos: open, doneTodos: done };
-  }, [todos]);
+    const visible = showAllOpen ? open : open.slice(0, MAX_VISIBLE_TODOS);
+    const hasMore = open.length > MAX_VISIBLE_TODOS;
+    return { openTodos: open, doneTodos: done, visibleOpenTodos: visible, hasMoreOpenTodos: hasMore };
+  }, [todos, showAllOpen]);
 
   const groupedTodos = useMemo(() => {
     const grouped = groupBy(openTodos, 'priority');
@@ -67,11 +72,11 @@ export default function TodoList({
     setActiveId(null);
 
     if (over && active.id !== over.id) {
-      const oldIndex = openTodos.findIndex((t) => t.id === active.id);
-      const newIndex = openTodos.findIndex((t) => t.id === over.id);
+      const oldIndex = visibleOpenTodos.findIndex((t) => t.id === active.id);
+      const newIndex = visibleOpenTodos.findIndex((t) => t.id === over.id);
 
       if (oldIndex !== -1 && newIndex !== -1) {
-        const newOrder = arrayMove(openTodos, oldIndex, newIndex);
+        const newOrder = arrayMove(visibleOpenTodos, oldIndex, newIndex);
         const updates = newOrder.map((todo, index) => ({
           id: todo.id,
           position: index
@@ -125,11 +130,11 @@ export default function TodoList({
         <div className="p-4">
           {openTodos.length > 0 ? (
             <SortableContext
-              items={openTodos.map((t) => t.id)}
+              items={visibleOpenTodos.map((t) => t.id)}
               strategy={verticalListSortingStrategy}
             >
               <div className="space-y-2">
-                {openTodos.map((todo) => (
+                {visibleOpenTodos.map((todo) => (
                   <TodoItem
                     key={todo.id}
                     todo={todo}
@@ -140,6 +145,24 @@ export default function TodoList({
                   />
                 ))}
               </div>
+              {hasMoreOpenTodos && (
+                <button
+                  onClick={() => setShowAllOpen(!showAllOpen)}
+                  className="w-full mt-3 py-2 flex items-center justify-center gap-1 text-sm text-text-secondary hover:text-accent hover:bg-surface-secondary rounded-lg transition-colors font-sans"
+                >
+                  {showAllOpen ? (
+                    <>
+                      <ChevronUp className="w-4 h-4" />
+                      Weniger anzeigen
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="w-4 h-4" />
+                      {openTodos.length - MAX_VISIBLE_TODOS} weitere anzeigen
+                    </>
+                  )}
+                </button>
+              )}
             </SortableContext>
           ) : (
             <p className="text-sm text-text-secondary text-center py-8">

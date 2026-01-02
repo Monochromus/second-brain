@@ -38,7 +38,7 @@ router.get('/', asyncHandler(async (req, res) => {
     params.push(due_before);
   }
 
-  query += ' ORDER BY position ASC, priority ASC, due_date ASC NULLS LAST, created_at DESC';
+  query += ' ORDER BY created_at DESC';
 
   if (limit) {
     query += ' LIMIT ?';

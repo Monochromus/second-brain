@@ -45,7 +45,7 @@ router.get('/', asyncHandler(async (req, res) => {
     params.push(`%${search}%`, `%${search}%`);
   }
 
-  query += ' ORDER BY n.is_pinned DESC, n.position ASC, n.updated_at DESC';
+  query += ' ORDER BY n.is_pinned DESC, n.created_at DESC';
 
   if (limit) {
     query += ' LIMIT ?';

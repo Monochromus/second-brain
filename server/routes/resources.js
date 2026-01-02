@@ -39,7 +39,7 @@ router.get('/', asyncHandler(async (req, res) => {
     params.push(`%${search}%`, `%${search}%`);
   }
 
-  query += ' ORDER BY position ASC, updated_at DESC';
+  query += ' ORDER BY created_at DESC';
 
   const resources = db.prepare(query).all(...params);
 

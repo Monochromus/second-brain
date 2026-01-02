@@ -24,7 +24,7 @@ router.get('/', asyncHandler(async (req, res) => {
     params.push(status);
   }
 
-  query += ' ORDER BY p.position ASC, p.created_at DESC';
+  query += ' ORDER BY p.created_at DESC';
 
   const projects = db.prepare(query).all(...params);
 
@@ -70,12 +70,12 @@ router.get('/:id', asyncHandler(async (req, res) => {
 
   const todos = db.prepare(`
     SELECT * FROM todos WHERE project_id = ?
-    ORDER BY status ASC, priority ASC, position ASC
+    ORDER BY status ASC, created_at DESC
   `).all(id);
 
   const notes = db.prepare(`
     SELECT * FROM notes WHERE project_id = ?
-    ORDER BY is_pinned DESC, position ASC, updated_at DESC
+    ORDER BY is_pinned DESC, created_at DESC
   `).all(id).map(note => ({
     ...note,
     tags: JSON.parse(note.tags || '[]'),
@@ -89,7 +89,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
 
   const resources = db.prepare(`
     SELECT * FROM resources WHERE project_id = ? AND is_archived = 0
-    ORDER BY position ASC, updated_at DESC
+    ORDER BY created_at DESC
   `).all(id).map(r => ({
     ...r,
     tags: JSON.parse(r.tags || '[]')
