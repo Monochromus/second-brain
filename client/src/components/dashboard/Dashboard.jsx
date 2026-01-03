@@ -110,8 +110,8 @@ export default function Dashboard() {
   };
 
   return (
-    <div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+    <div className="flex flex-col gap-4 [&_.notebook-section]:mb-0">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <TodayCalendar events={events} loading={eventsLoading} />
 
         <div className="lg:col-span-2">
@@ -127,16 +127,14 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="mb-6">
-        <ProjectGrid
-          projects={projects}
-          loading={projectsLoading}
-          onEdit={(project) => setProjectModal({ open: true, project })}
-          onDelete={(id) => setDeleteConfirm({ open: true, type: 'project', id })}
-          onArchive={handleArchiveProject}
-          onAdd={() => setProjectModal({ open: true, project: null })}
-        />
-      </div>
+      <ProjectGrid
+        projects={projects}
+        loading={projectsLoading}
+        onEdit={(project) => setProjectModal({ open: true, project })}
+        onDelete={(id) => setDeleteConfirm({ open: true, type: 'project', id })}
+        onArchive={handleArchiveProject}
+        onAdd={() => setProjectModal({ open: true, project: null })}
+      />
 
       <NotesGrid
         notes={notes}

@@ -113,6 +113,20 @@ export default function CustomToolsPage() {
         </div>
       </div>
 
+      {/* Welcome Info */}
+      <div className="mb-6 text-center">
+        <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-surface-secondary flex items-center justify-center">
+          <Wrench className="w-6 h-6 text-text-secondary" />
+        </div>
+        <h2 className="text-lg font-semibold text-text-primary mb-1">
+          Willkommen bei deinen Tools!
+        </h2>
+        <p className="text-text-secondary text-sm max-w-lg mx-auto">
+          Klicke auf einen Container unten, um ein Tool zu erstellen.
+          Beschreibe einfach, was du brauchst - z.B. einen Pomodoro-Timer, eine Weltuhr, einen Einheitenrechner, ein Kanban-Board oder einen Habit-Tracker.
+        </p>
+      </div>
+
       {/* Model Warning */}
       {showModelWarning && (
         <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-3">
@@ -139,7 +153,7 @@ export default function CustomToolsPage() {
       )}
 
       {/* Container Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="flex flex-col gap-6">
         {/* Existing Tools */}
         {tools.map((tool, index) => (
           <ToolContainer
@@ -169,22 +183,6 @@ export default function CustomToolsPage() {
         <div className="mt-6 p-4 rounded-xl bg-surface-secondary border border-border text-center">
           <p className="text-text-secondary">
             Du hast alle {MAX_CONTAINERS} Tool-Plätze belegt. Lösche ein Tool, um ein neues zu erstellen.
-          </p>
-        </div>
-      )}
-
-      {/* Empty State */}
-      {tools.length === 0 && (
-        <div className="mt-8 text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-surface-secondary flex items-center justify-center">
-            <Wrench className="w-8 h-8 text-text-secondary" />
-          </div>
-          <h2 className="text-lg font-semibold text-text-primary mb-2">
-            Willkommen bei deinen Tools!
-          </h2>
-          <p className="text-text-secondary max-w-md mx-auto">
-            Klicke auf einen Container oben, um dein erstes Tool zu erstellen.
-            Beschreibe einfach, was du brauchst - z.B. einen Timer, eine Uhr oder einen Rechner.
           </p>
         </div>
       )}

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import {
   Library, Plus, MoreVertical, Archive, Pencil, Trash2,
-  ExternalLink, Tag, Search
+  ExternalLink, Tag, Search, ChevronDown
 } from 'lucide-react';
 import { useResources } from '../hooks/useResources';
 import { useAgent } from '../hooks/useAgent';
@@ -98,18 +98,21 @@ export default function ResourcesPage() {
         </div>
 
         {categories.length > 0 && (
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="input w-auto"
-          >
-            <option value="">Alle Kategorien</option>
-            {categories.map(cat => (
-              <option key={cat.category} value={cat.category}>
-                {cat.category} ({cat.count})
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="pl-3 pr-8 py-2.5 rounded-lg text-text-primary focus:outline-none transition-all duration-200 cursor-pointer appearance-none bg-transparent border-none"
+            >
+              <option value="">Alle Kategorien</option>
+              {categories.map(cat => (
+                <option key={cat.category} value={cat.category}>
+                  {cat.category} ({cat.count})
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary pointer-events-none" />
+          </div>
         )}
       </div>
 
