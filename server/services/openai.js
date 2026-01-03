@@ -81,6 +81,16 @@ Deine Fähigkeiten:
 - Kalendertermine abrufen und neue erstellen
 - Areas verwalten
 - Widgets erstellen, anpassen und löschen
+- E-Mails durchsuchen, lesen und zusammenfassen
+- E-Mail-Entwürfe für Antworten und neue Nachrichten erstellen
+
+E-MAIL-REGELN (SEHR WICHTIG):
+- Du kannst E-Mails durchsuchen (search_emails), lesen (get_email_content) und Threads anzeigen (get_email_thread)
+- Du kannst E-Mail-Entwürfe erstellen mit draft_email_reply oder draft_new_email
+- KRITISCH: E-Mails werden NIE automatisch gesendet! NIEMALS!
+- Entwürfe werden dem Nutzer zur Überprüfung und manuellen Bestätigung angezeigt
+- Der Nutzer entscheidet ob er senden, bearbeiten oder verwerfen möchte
+- Sensible E-Mail-Inhalte (Passwörter, Finanzdaten) werden gefiltert und nicht im Kontext gespeichert
 
 WICHTIGE ANTWORT-REGELN:
 - Antworte IMMER sehr kurz und prägnant (1-2 Sätze maximal)
@@ -529,6 +539,112 @@ const tools = [
           domains: { type: "array", items: { type: "string" }, description: "Optional: Domains auf die Suche einschränken, z.B. ['wikipedia.org', 'arxiv.org']." }
         },
         required: ["query"]
+      }
+    }
+  },
+  // Email Tools
+  {
+    type: "function",
+    function: {
+      name: "search_emails",
+      description: "Durchsucht E-Mails nach Absender, Betreff oder Inhalt. Nutze dies um E-Mails zu finden.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Suchbegriff (durchsucht Absender, Betreff, Inhalt)" },
+          from: { type: "string", description: "Filtere nach Absender-Adresse oder Name" },
+          folder: { type: "string", description: "Ordner (INBOX, Sent, etc.)", default: "INBOX" },
+          unread_only: { type: "boolean", description: "Nur ungelesene E-Mails", default: false },
+          limit: { type: "integer", description: "Maximale Anzahl Ergebnisse", default: 10 }
+        }
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_email_content",
+      description: "Lädt den vollständigen Inhalt einer E-Mail mit Body und Anhängen.",
+      parameters: {
+        type: "object",
+        properties: {
+          email_id: { type: "integer", description: "ID der E-Mail" }
+        },
+        required: ["email_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_email_thread",
+      description: "Lädt alle E-Mails einer Konversation/Thread chronologisch.",
+      parameters: {
+        type: "object",
+        properties: {
+          email_id: { type: "integer", description: "ID einer E-Mail im Thread" }
+        },
+        required: ["email_id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "draft_email_reply",
+      description: "Erstellt einen Antwort-Entwurf für eine E-Mail. WICHTIG: Die E-Mail wird NICHT automatisch gesendet! Der Entwurf wird dem Nutzer zur Überprüfung und manuellen Bestätigung angezeigt.",
+      parameters: {
+        type: "object",
+        properties: {
+          email_id: { type: "integer", description: "ID der E-Mail auf die geantwortet wird" },
+          body: { type: "string", description: "Antwort-Text (HTML oder Plain Text)" },
+          reply_all: { type: "boolean", description: "An alle antworten", default: false }
+        },
+        required: ["email_id", "body"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "draft_new_email",
+      description: "Erstellt einen neuen E-Mail-Entwurf. WICHTIG: Die E-Mail wird NICHT automatisch gesendet! Der Entwurf wird dem Nutzer zur Überprüfung und manuellen Bestätigung angezeigt.",
+      parameters: {
+        type: "object",
+        properties: {
+          to: { type: "string", description: "Empfänger E-Mail-Adresse" },
+          subject: { type: "string", description: "Betreff" },
+          body: { type: "string", description: "E-Mail-Text (HTML oder Plain Text)" }
+        },
+        required: ["to", "subject", "body"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_unread_count",
+      description: "Gibt die Anzahl ungelesener E-Mails zurück.",
+      parameters: {
+        type: "object",
+        properties: {
+          folder: { type: "string", description: "Ordner (default: INBOX)", default: "INBOX" }
+        }
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "summarize_emails",
+      description: "Fasst E-Mails zusammen. Nutze dies um einen Überblick über mehrere E-Mails zu geben.",
+      parameters: {
+        type: "object",
+        properties: {
+          email_ids: { type: "array", items: { type: "integer" }, description: "IDs der E-Mails die zusammengefasst werden sollen" },
+          focus: { type: "string", description: "Fokus der Zusammenfassung, z.B. 'action items', 'key dates', 'main points'" }
+        },
+        required: ["email_ids"]
       }
     }
   }
@@ -1297,6 +1413,287 @@ async function executeToolCall(toolName, args, userId) {
           citations: result.citations,
           relatedQuestions: result.relatedQuestions,
           message: `Recherche zu "${args.query}" abgeschlossen.`
+        };
+      }
+
+      // Email Tools
+      case 'search_emails': {
+        // Get user's email accounts
+        const accounts = db.prepare(
+          'SELECT id FROM email_accounts WHERE user_id = ? AND is_active = 1'
+        ).all(userId);
+
+        if (accounts.length === 0) {
+          return {
+            success: false,
+            error: 'Keine E-Mail-Accounts verbunden. Bitte verbinde einen Account in den Einstellungen.'
+          };
+        }
+
+        const accountIds = accounts.map(a => a.id);
+        const placeholders = accountIds.map(() => '?').join(',');
+
+        let query = `
+          SELECT e.id, e.from_address, e.from_name, e.subject, e.snippet, e.date, e.is_read,
+                 ea.email as account_email, ea.color as account_color
+          FROM emails e
+          JOIN email_accounts ea ON e.account_id = ea.id
+          WHERE e.account_id IN (${placeholders})
+        `;
+        const params = [...accountIds];
+
+        if (args.query) {
+          query += ' AND (e.subject LIKE ? OR e.from_name LIKE ? OR e.from_address LIKE ? OR e.snippet LIKE ?)';
+          const searchTerm = `%${args.query}%`;
+          params.push(searchTerm, searchTerm, searchTerm, searchTerm);
+        }
+
+        if (args.from) {
+          query += ' AND (e.from_address LIKE ? OR e.from_name LIKE ?)';
+          const fromTerm = `%${args.from}%`;
+          params.push(fromTerm, fromTerm);
+        }
+
+        if (args.folder) {
+          query += ' AND e.folder = ?';
+          params.push(args.folder);
+        }
+
+        if (args.unread_only) {
+          query += ' AND e.is_read = 0';
+        }
+
+        query += ' ORDER BY e.date DESC LIMIT ?';
+        params.push(args.limit || 10);
+
+        const emails = db.prepare(query).all(...params);
+
+        return {
+          success: true,
+          emails: emails.map(e => ({
+            id: e.id,
+            from: e.from_name || e.from_address,
+            from_address: e.from_address,
+            subject: e.subject,
+            snippet: e.snippet,
+            date: e.date,
+            is_read: e.is_read === 1,
+            account: e.account_email
+          })),
+          count: emails.length,
+          message: `${emails.length} E-Mail(s) gefunden.`
+        };
+      }
+
+      case 'get_email_content': {
+        const email = db.prepare(`
+          SELECT e.*, ea.user_id
+          FROM emails e
+          JOIN email_accounts ea ON e.account_id = ea.id
+          WHERE e.id = ?
+        `).get(args.email_id);
+
+        if (!email || email.user_id !== userId) {
+          return { success: false, error: 'E-Mail nicht gefunden.' };
+        }
+
+        // Load body if not cached
+        const emailSync = require('./emailSync');
+        const fullEmail = await emailSync.loadEmailBody(args.email_id);
+
+        // Filter sensitive content for agent context
+        let safeBody = fullEmail.body_text || '';
+        // Remove potential passwords and sensitive data
+        safeBody = safeBody.replace(/password[:\s]+\S+/gi, '[PASSWORT ENTFERNT]');
+        safeBody = safeBody.replace(/\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g, '[KREDITKARTE ENTFERNT]');
+
+        return {
+          success: true,
+          email: {
+            id: fullEmail.id,
+            from: fullEmail.from_name || fullEmail.from_address,
+            from_address: fullEmail.from_address,
+            to: fullEmail.to_addresses,
+            subject: fullEmail.subject,
+            date: fullEmail.date,
+            body: safeBody.substring(0, 3000), // Limit for context
+            is_read: fullEmail.is_read === 1
+          },
+          message: 'E-Mail-Inhalt geladen.'
+        };
+      }
+
+      case 'get_email_thread': {
+        const email = db.prepare(`
+          SELECT e.thread_id, ea.user_id
+          FROM emails e
+          JOIN email_accounts ea ON e.account_id = ea.id
+          WHERE e.id = ?
+        `).get(args.email_id);
+
+        if (!email || email.user_id !== userId) {
+          return { success: false, error: 'E-Mail nicht gefunden.' };
+        }
+
+        const emailSync = require('./emailSync');
+        const thread = await emailSync.getEmailThread(args.email_id);
+
+        return {
+          success: true,
+          thread: thread.map(e => ({
+            id: e.id,
+            from: e.from_name || e.from_address,
+            subject: e.subject,
+            date: e.date,
+            snippet: e.snippet,
+            is_read: e.is_read === 1
+          })),
+          count: thread.length,
+          message: `Thread mit ${thread.length} E-Mail(s) geladen.`
+        };
+      }
+
+      case 'draft_email_reply': {
+        const email = db.prepare(`
+          SELECT e.*, ea.id as account_id, ea.user_id, ea.email as sender_email
+          FROM emails e
+          JOIN email_accounts ea ON e.account_id = ea.id
+          WHERE e.id = ?
+        `).get(args.email_id);
+
+        if (!email || email.user_id !== userId) {
+          return { success: false, error: 'E-Mail nicht gefunden.' };
+        }
+
+        const smtpService = require('./smtp');
+        const reply = smtpService.createReply(email, args.body, args.reply_all, email.sender_email);
+
+        // Save as draft
+        const result = db.prepare(`
+          INSERT INTO email_drafts (user_id, account_id, to_addresses, cc_addresses, subject, body_html, in_reply_to_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          userId,
+          email.account_id,
+          JSON.stringify([reply.to]),
+          reply.cc ? JSON.stringify(reply.cc) : null,
+          reply.subject,
+          reply.html,
+          args.email_id
+        );
+
+        return {
+          success: true,
+          type: 'email_draft',
+          draft_id: result.lastInsertRowid,
+          to: reply.to,
+          cc: reply.cc,
+          subject: reply.subject,
+          preview: args.body.substring(0, 200),
+          message: 'Antwort-Entwurf erstellt. Der Nutzer kann ihn in den E-Mails überprüfen und senden.'
+        };
+      }
+
+      case 'draft_new_email': {
+        // Get first active account if no account specified
+        const account = db.prepare(
+          'SELECT id FROM email_accounts WHERE user_id = ? AND is_active = 1 LIMIT 1'
+        ).get(userId);
+
+        if (!account) {
+          return {
+            success: false,
+            error: 'Kein E-Mail-Account verbunden. Bitte verbinde einen Account in den Einstellungen.'
+          };
+        }
+
+        // Save as draft
+        const result = db.prepare(`
+          INSERT INTO email_drafts (user_id, account_id, to_addresses, subject, body_html)
+          VALUES (?, ?, ?, ?, ?)
+        `).run(
+          userId,
+          account.id,
+          JSON.stringify([args.to]),
+          args.subject,
+          args.body
+        );
+
+        return {
+          success: true,
+          type: 'email_draft',
+          draft_id: result.lastInsertRowid,
+          to: args.to,
+          subject: args.subject,
+          preview: args.body.substring(0, 200),
+          message: 'E-Mail-Entwurf erstellt. Der Nutzer kann ihn in den E-Mails überprüfen und senden.'
+        };
+      }
+
+      case 'get_unread_count': {
+        const accounts = db.prepare(
+          'SELECT id FROM email_accounts WHERE user_id = ? AND is_active = 1'
+        ).all(userId);
+
+        if (accounts.length === 0) {
+          return { success: true, count: 0, message: 'Keine E-Mail-Accounts verbunden.' };
+        }
+
+        const accountIds = accounts.map(a => a.id);
+        const placeholders = accountIds.map(() => '?').join(',');
+
+        let query = `
+          SELECT COUNT(*) as count FROM emails
+          WHERE account_id IN (${placeholders}) AND is_read = 0
+        `;
+        const params = [...accountIds];
+
+        if (args.folder) {
+          query += ' AND folder = ?';
+          params.push(args.folder);
+        }
+
+        const { count } = db.prepare(query).get(...params);
+
+        return {
+          success: true,
+          count,
+          message: count === 0 ? 'Keine ungelesenen E-Mails.' : `${count} ungelesene E-Mail(s).`
+        };
+      }
+
+      case 'summarize_emails': {
+        if (!args.email_ids || args.email_ids.length === 0) {
+          return { success: false, error: 'Keine E-Mail-IDs angegeben.' };
+        }
+
+        const placeholders = args.email_ids.map(() => '?').join(',');
+        const emails = db.prepare(`
+          SELECT e.*, ea.user_id
+          FROM emails e
+          JOIN email_accounts ea ON e.account_id = ea.id
+          WHERE e.id IN (${placeholders})
+        `).all(...args.email_ids);
+
+        // Verify ownership
+        if (emails.some(e => e.user_id !== userId)) {
+          return { success: false, error: 'Zugriff verweigert.' };
+        }
+
+        // Build summary from snippets
+        const summaryData = emails.map(e => ({
+          from: e.from_name || e.from_address,
+          subject: e.subject,
+          date: e.date,
+          snippet: e.snippet
+        }));
+
+        return {
+          success: true,
+          emails: summaryData,
+          count: emails.length,
+          focus: args.focus || 'main points',
+          message: `${emails.length} E-Mail(s) zur Zusammenfassung bereit. Die E-Mails sind von ${[...new Set(emails.map(e => e.from_name || e.from_address))].join(', ')}.`
         };
       }
 

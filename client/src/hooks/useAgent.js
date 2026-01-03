@@ -47,6 +47,8 @@ export function useAgent(refreshCallbacks = {}) {
     extractedData: context.extractedData,
     confirmExtraction: context.confirmExtraction,
     cancelExtraction: context.cancelExtraction,
-    isConfirming: context.isConfirming
+    isConfirming: context.isConfirming,
+    // Refresh listeners for real-time updates
+    registerRefreshListener: context.registerRefreshListener
   };
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Brain, Search, Settings, LogOut, User, Calendar, Wrench, ChevronDown, CheckCircle, FileText, Folder, FolderOpen, Library, Home, LayoutGrid, CalendarDays } from 'lucide-react';
+import { Brain, Search, Settings, LogOut, User, Calendar, Wrench, ChevronDown, CheckCircle, FileText, Folder, FolderOpen, Library, Home, LayoutGrid, CalendarDays, Mail } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { api } from '../../lib/api';
 import ThemeToggle from '../shared/ThemeToggle';
@@ -14,6 +14,7 @@ const navItems = [
   { path: '/resources', icon: Library, label: 'Ressourcen' },
   { path: '/tools', icon: Wrench, label: 'Tools' },
   { path: '/calendar', icon: Calendar, label: 'Kalender' },
+  { path: '/email', icon: Mail, label: 'E-Mail' },
 ];
 
 export default function Header() {

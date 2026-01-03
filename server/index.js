@@ -25,6 +25,9 @@ const customToolsRoutes = require('./routes/customTools');
 const visionRoutes = require('./routes/vision');
 const settingsRoutes = require('./routes/settings');
 const captureRoutes = require('./routes/capture');
+const emailAccountsRoutes = require('./routes/emailAccounts');
+const emailsRoutes = require('./routes/emails');
+const emailDraftsRoutes = require('./routes/emailDrafts');
 
 const app = express();
 const server = http.createServer(app);
@@ -136,6 +139,9 @@ app.use('/api/custom-tools', customToolsRoutes);
 app.use('/api/vision', visionRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/capture', captureRoutes);
+app.use('/api/email-accounts', emailAccountsRoutes);
+app.use('/api/emails', emailsRoutes);
+app.use('/api/email-drafts', emailDraftsRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({

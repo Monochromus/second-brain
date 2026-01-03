@@ -10,6 +10,7 @@ export default {
       colors: {
         background: 'var(--background)',
         surface: 'var(--surface)',
+        'surface-primary': 'var(--surface)',
         'surface-secondary': 'var(--surface-secondary)',
         border: 'var(--border)',
         'text-primary': 'var(--text-primary)',

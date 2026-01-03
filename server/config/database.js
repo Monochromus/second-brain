@@ -328,6 +328,154 @@ function runMigrations() {
     CREATE INDEX IF NOT EXISTS idx_captures_processed ON captures(processed);
   `);
   console.log('Migration: Ensured captures table exists');
+
+  // Create email_accounts table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS email_accounts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      email TEXT NOT NULL,
+      display_name TEXT,
+      provider TEXT NOT NULL CHECK(provider IN ('icloud', 'gmail', 'outlook', 'gmx', 'custom')),
+      encrypted_password TEXT NOT NULL,
+      encryption_iv TEXT NOT NULL,
+      encryption_auth_tag TEXT NOT NULL,
+      imap_host TEXT NOT NULL,
+      imap_port INTEGER DEFAULT 993,
+      smtp_host TEXT NOT NULL,
+      smtp_port INTEGER DEFAULT 587,
+      color TEXT DEFAULT '#3B82F6',
+      is_active INTEGER DEFAULT 1,
+      last_sync DATETIME,
+      last_sync_status TEXT,
+      sync_error TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, email)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_email_accounts_user ON email_accounts(user_id);
+  `);
+  console.log('Migration: Ensured email_accounts table exists');
+
+  // Migration: Add GMX to email_accounts provider constraint
+  // Check if constraint needs updating by examining table SQL
+  try {
+    const tableSQL = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='email_accounts'").get();
+    if (tableSQL && tableSQL.sql && !tableSQL.sql.includes("'gmx'")) {
+      console.log('Migration: Updating email_accounts provider constraint to include gmx...');
+      db.exec(`
+        CREATE TABLE email_accounts_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          email TEXT NOT NULL,
+          display_name TEXT,
+          provider TEXT NOT NULL CHECK(provider IN ('icloud', 'gmail', 'outlook', 'gmx', 'custom')),
+          encrypted_password TEXT NOT NULL,
+          encryption_iv TEXT NOT NULL,
+          encryption_auth_tag TEXT NOT NULL,
+          imap_host TEXT NOT NULL,
+          imap_port INTEGER DEFAULT 993,
+          smtp_host TEXT NOT NULL,
+          smtp_port INTEGER DEFAULT 587,
+          color TEXT DEFAULT '#3B82F6',
+          is_active INTEGER DEFAULT 1,
+          last_sync DATETIME,
+          last_sync_status TEXT,
+          sync_error TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id, email)
+        );
+        INSERT INTO email_accounts_new SELECT * FROM email_accounts;
+        DROP TABLE email_accounts;
+        ALTER TABLE email_accounts_new RENAME TO email_accounts;
+        CREATE INDEX IF NOT EXISTS idx_email_accounts_user ON email_accounts(user_id);
+      `);
+      console.log('Migration: Provider constraint updated successfully');
+    }
+  } catch (e) {
+    console.log('Migration: email_accounts constraint check skipped -', e.message);
+  }
+
+  // Create emails table (header cache)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS emails (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      account_id INTEGER NOT NULL REFERENCES email_accounts(id) ON DELETE CASCADE,
+      uid INTEGER NOT NULL,
+      message_id TEXT,
+      thread_id TEXT,
+      folder TEXT DEFAULT 'INBOX',
+      from_address TEXT NOT NULL,
+      from_name TEXT,
+      to_addresses TEXT,
+      cc_addresses TEXT,
+      subject TEXT,
+      snippet TEXT,
+      body_text TEXT,
+      body_html TEXT,
+      date DATETIME NOT NULL,
+      is_read INTEGER DEFAULT 0,
+      is_starred INTEGER DEFAULT 0,
+      is_draft INTEGER DEFAULT 0,
+      has_attachments INTEGER DEFAULT 0,
+      in_reply_to TEXT,
+      references_header TEXT,
+      category TEXT CHECK(category IN ('important', 'newsletter', 'transactional', 'social', 'other')),
+      needs_reply INTEGER DEFAULT 0,
+      synced_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(account_id, uid, folder)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_emails_account ON emails(account_id);
+    CREATE INDEX IF NOT EXISTS idx_emails_folder ON emails(account_id, folder);
+    CREATE INDEX IF NOT EXISTS idx_emails_date ON emails(date);
+    CREATE INDEX IF NOT EXISTS idx_emails_thread ON emails(thread_id);
+    CREATE INDEX IF NOT EXISTS idx_emails_category ON emails(category);
+    CREATE INDEX IF NOT EXISTS idx_emails_unread ON emails(account_id, folder, is_read);
+    CREATE INDEX IF NOT EXISTS idx_emails_message_id ON emails(message_id);
+  `);
+  console.log('Migration: Ensured emails table exists');
+
+  // Create email_attachments table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS email_attachments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email_id INTEGER NOT NULL REFERENCES emails(id) ON DELETE CASCADE,
+      filename TEXT NOT NULL,
+      content_type TEXT,
+      size INTEGER,
+      content_id TEXT,
+      is_inline INTEGER DEFAULT 0,
+      file_path TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_email_attachments_email ON email_attachments(email_id);
+  `);
+  console.log('Migration: Ensured email_attachments table exists');
+
+  // Create email_drafts table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS email_drafts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      account_id INTEGER REFERENCES email_accounts(id) ON DELETE SET NULL,
+      to_addresses TEXT,
+      cc_addresses TEXT,
+      bcc_addresses TEXT,
+      subject TEXT,
+      body_html TEXT,
+      body_text TEXT,
+      in_reply_to_id INTEGER REFERENCES emails(id) ON DELETE SET NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_email_drafts_user ON email_drafts(user_id);
+    CREATE INDEX IF NOT EXISTS idx_email_drafts_account ON email_drafts(account_id);
+  `);
+  console.log('Migration: Ensured email_drafts table exists');
 }
 
 function createTriggers() {
@@ -387,6 +535,20 @@ function createTriggers() {
     AFTER UPDATE ON captures
     BEGIN
       UPDATE captures SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+    END;
+
+    -- Trigger to update updated_at on email_accounts
+    CREATE TRIGGER IF NOT EXISTS update_email_accounts_timestamp
+    AFTER UPDATE ON email_accounts
+    BEGIN
+      UPDATE email_accounts SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+    END;
+
+    -- Trigger to update updated_at on email_drafts
+    CREATE TRIGGER IF NOT EXISTS update_email_drafts_timestamp
+    AFTER UPDATE ON email_drafts
+    BEGIN
+      UPDATE email_drafts SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
     END;
   `);
 }

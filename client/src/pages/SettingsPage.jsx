@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { User, Key, Calendar, Palette, RefreshCw, Bot, Eye, EyeOff, Check, Smartphone, Copy, Trash2, AlertTriangle, ExternalLink, Globe } from 'lucide-react';
+import { User, Key, Calendar, Palette, RefreshCw, Bot, Eye, EyeOff, Check, Smartphone, Copy, Trash2, AlertTriangle, ExternalLink, Globe, Mail, Plus, Loader2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
 import { useCalendarConnections } from '../hooks/useCalendar';
+import { useEmailAccounts } from '../hooks/useEmailAccounts';
 import { api } from '../lib/api';
 import toast from 'react-hot-toast';
 import { cn } from '../lib/utils';
@@ -11,6 +12,15 @@ export default function SettingsPage() {
   const { user, updateSettings } = useAuth();
   const { theme, setLightTheme, setDarkTheme, accentColor, setAccentColor, accentColors } = useTheme();
   const { connections, addConnection, removeConnection, refetch: refetchConnections } = useCalendarConnections();
+  const {
+    accounts: emailAccounts,
+    providers: emailProviders,
+    loading: emailAccountsLoading,
+    addAccount: addEmailAccount,
+    removeAccount: removeEmailAccount,
+    testConnection: testEmailConnection,
+    syncAccount: syncEmailAccount
+  } = useEmailAccounts();
 
   const [profileForm, setProfileForm] = useState({
     name: user?.name || '',
@@ -63,12 +73,25 @@ export default function SettingsPage() {
     password: ''
   });
 
+  const [emailForm, setEmailForm] = useState({
+    email: '',
+    password: '',
+    display_name: '',
+    provider: 'icloud',
+    color: '#3B82F6'
+  });
+  const [showEmailPassword, setShowEmailPassword] = useState(false);
+  const [testingEmail, setTestingEmail] = useState(null);
+  const [syncingEmail, setSyncingEmail] = useState(null);
+  const [showAddEmailForm, setShowAddEmailForm] = useState(false);
+
   const [saving, setSaving] = useState({
     profile: false,
     apiKey: false,
     perplexity: false,
     password: false,
-    calendar: false
+    calendar: false,
+    email: false
   });
 
   // Personal Shortcut Key state
@@ -237,6 +260,61 @@ export default function SettingsPage() {
       toast.error(err.message);
     }
   };
+
+  const handleAddEmailAccount = async (e) => {
+    e.preventDefault();
+    if (!emailForm.email || !emailForm.password) {
+      toast.error('E-Mail und Passwort sind erforderlich');
+      return;
+    }
+    setSaving({ ...saving, email: true });
+    try {
+      await addEmailAccount(emailForm);
+      setEmailForm({
+        email: '',
+        password: '',
+        display_name: '',
+        provider: 'icloud',
+        color: '#3B82F6'
+      });
+      setShowAddEmailForm(false);
+    } catch {
+      // Error already handled by hook
+    } finally {
+      setSaving({ ...saving, email: false });
+    }
+  };
+
+  const handleTestEmailConnection = async (accountId) => {
+    setTestingEmail(accountId);
+    try {
+      await testEmailConnection(accountId);
+    } catch {
+      // Error already handled by hook
+    } finally {
+      setTestingEmail(null);
+    }
+  };
+
+  const handleSyncEmailAccount = async (accountId) => {
+    setSyncingEmail(accountId);
+    try {
+      await syncEmailAccount(accountId);
+    } catch {
+      // Error already handled by hook
+    } finally {
+      setSyncingEmail(null);
+    }
+  };
+
+  const emailColors = [
+    { id: '#3B82F6', name: 'Blau' },
+    { id: '#10B981', name: 'Grün' },
+    { id: '#8B5CF6', name: 'Violett' },
+    { id: '#F59E0B', name: 'Orange' },
+    { id: '#EF4444', name: 'Rot' },
+    { id: '#EC4899', name: 'Pink' }
+  ];
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -832,6 +910,275 @@ export default function SettingsPage() {
               {saving.calendar ? 'Verbinde...' : 'Kalender verbinden'}
             </button>
           </form>
+        </div>
+
+        {/* Email Accounts Section */}
+        <div className="card p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
+                <Mail className="w-5 h-5 text-accent" />
+              </div>
+              <div>
+                <h2 className="font-semibold text-text-primary">E-Mail-Konten</h2>
+                <p className="text-sm text-text-secondary">Verbinde E-Mail-Accounts für den Assistenten</p>
+              </div>
+            </div>
+            {!showAddEmailForm && (
+              <button
+                onClick={() => setShowAddEmailForm(true)}
+                className="btn btn-secondary"
+              >
+                <Plus className="w-4 h-4" />
+                Hinzufügen
+              </button>
+            )}
+          </div>
+
+          {emailAccountsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-accent" />
+            </div>
+          ) : (
+            <>
+              {/* Existing Email Accounts */}
+              {emailAccounts.length > 0 && (
+                <div className="mb-6 space-y-3">
+                  {emailAccounts.map((account) => (
+                    <div
+                      key={account.id}
+                      className="flex items-center justify-between p-4 bg-surface-secondary rounded-lg"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: account.color || '#3B82F6' }}
+                        />
+                        <div>
+                          <p className="font-medium text-text-primary">
+                            {account.display_name || account.email}
+                          </p>
+                          <p className="text-xs text-text-secondary">
+                            {account.email} • {account.provider}
+                            {account.last_sync && (
+                              <> • Letzte Sync: {new Date(account.last_sync).toLocaleDateString('de-DE', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}</>
+                            )}
+                          </p>
+                          {account.sync_error && (
+                            <p className="text-xs text-error mt-1">{account.sync_error}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleTestEmailConnection(account.id)}
+                          disabled={testingEmail === account.id}
+                          className="btn btn-secondary text-xs px-2 py-1"
+                          title="Verbindung testen"
+                        >
+                          {testingEmail === account.id ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Check className="w-3 h-3" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleSyncEmailAccount(account.id)}
+                          disabled={syncingEmail === account.id}
+                          className="btn btn-secondary text-xs px-2 py-1"
+                          title="Jetzt synchronisieren"
+                        >
+                          {syncingEmail === account.id ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <RefreshCw className="w-3 h-3" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => removeEmailAccount(account.id)}
+                          className="p-1.5 text-error hover:bg-error/10 rounded transition-colors"
+                          title="Account entfernen"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add Email Account Form */}
+              {showAddEmailForm && (
+                <form onSubmit={handleAddEmailAccount} className="space-y-4 p-4 bg-surface-secondary rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-medium text-text-primary">Neuen Account hinzufügen</h3>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddEmailForm(false)}
+                      className="text-text-secondary hover:text-text-primary"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className="label">E-Mail-Adresse</label>
+                    <input
+                      type="email"
+                      value={emailForm.email}
+                      onChange={(e) => setEmailForm({ ...emailForm, email: e.target.value })}
+                      className="input"
+                      placeholder="deine@email.de"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="label">App-spezifisches Passwort</label>
+                    <div className="relative">
+                      <input
+                        type={showEmailPassword ? 'text' : 'password'}
+                        value={emailForm.password}
+                        onChange={(e) => setEmailForm({ ...emailForm, password: e.target.value })}
+                        className="input pr-10"
+                        placeholder="xxxx-xxxx-xxxx-xxxx"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowEmailPassword(!showEmailPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary"
+                      >
+                        {showEmailPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <p className="text-xs text-text-secondary mt-1">
+                      {emailForm.provider === 'icloud' && (
+                        <>Erstelle ein App-spezifisches Passwort unter{' '}
+                          <a href="https://appleid.apple.com/account/manage" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">appleid.apple.com</a>
+                        </>
+                      )}
+                      {emailForm.provider === 'gmail' && (
+                        <>Erstelle ein App-Passwort unter{' '}
+                          <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">myaccount.google.com</a>
+                          {' '}(2FA muss aktiviert sein)
+                        </>
+                      )}
+                      {emailForm.provider === 'outlook' && (
+                        <>Verwende dein normales Microsoft-Passwort. IMAP muss in den Outlook-Einstellungen aktiviert sein.</>
+                      )}
+                      {emailForm.provider === 'gmx' && (
+                        <>Aktiviere IMAP in den{' '}
+                          <a href="https://www.gmx.net/mail/imap-pop3/" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">GMX-Einstellungen</a>
+                          . Verwende dein normales GMX-Passwort.
+                        </>
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="label">Anzeigename (optional)</label>
+                      <input
+                        type="text"
+                        value={emailForm.display_name}
+                        onChange={(e) => setEmailForm({ ...emailForm, display_name: e.target.value })}
+                        className="input"
+                        placeholder="Privat"
+                      />
+                    </div>
+                    <div>
+                      <label className="label">Anbieter</label>
+                      <select
+                        value={emailForm.provider}
+                        onChange={(e) => setEmailForm({ ...emailForm, provider: e.target.value })}
+                        className="input"
+                      >
+                        <option value="icloud">iCloud</option>
+                        <option value="gmail">Gmail</option>
+                        <option value="outlook">Outlook</option>
+                        <option value="gmx">GMX</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="label">Farbe</label>
+                    <div className="flex gap-2">
+                      {emailColors.map((color) => (
+                        <button
+                          key={color.id}
+                          type="button"
+                          onClick={() => setEmailForm({ ...emailForm, color: color.id })}
+                          className={cn(
+                            'w-8 h-8 rounded-full border-2 transition-all flex items-center justify-center',
+                            emailForm.color === color.id
+                              ? 'border-text-primary scale-110'
+                              : 'border-transparent hover:scale-105'
+                          )}
+                          style={{ backgroundColor: color.id }}
+                          title={color.name}
+                        >
+                          {emailForm.color === color.id && (
+                            <Check className="w-4 h-4 text-white" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="submit"
+                      disabled={saving.email}
+                      className="btn btn-primary"
+                    >
+                      {saving.email ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Verbinde...
+                        </>
+                      ) : (
+                        'Account verbinden'
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddEmailForm(false)}
+                      className="btn btn-secondary"
+                    >
+                      Abbrechen
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* Empty State */}
+              {emailAccounts.length === 0 && !showAddEmailForm && (
+                <div className="text-center py-6 text-text-secondary">
+                  <Mail className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p>Noch keine E-Mail-Konten verbunden</p>
+                  <p className="text-sm mt-1">
+                    Verbinde ein Konto, um E-Mails über den Assistenten zu verwalten
+                  </p>
+                </div>
+              )}
+
+              {/* Help Text */}
+              <div className="mt-4 p-3 bg-surface-secondary rounded-lg text-xs text-text-secondary">
+                <p className="font-medium text-text-primary mb-1">Hinweis:</p>
+                <p>
+                  Nach dem Verbinden kann der Assistent E-Mails lesen, durchsuchen und Entwürfe erstellen.
+                  E-Mails werden nie automatisch gesendet – du behältst immer die Kontrolle.
+                </p>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
