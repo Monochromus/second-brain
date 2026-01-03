@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Brain, Search, Settings, LogOut, User, Calendar, Wrench, ChevronDown, CheckCircle, FileText, Folder, FolderOpen, Library, Home, LayoutGrid } from 'lucide-react';
+import { Brain, Search, Settings, LogOut, User, Calendar, Wrench, ChevronDown, CheckCircle, FileText, Folder, FolderOpen, Library, Home, LayoutGrid, CalendarDays } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { api } from '../../lib/api';
 import ThemeToggle from '../shared/ThemeToggle';
@@ -68,20 +68,43 @@ export default function Header() {
   const handleResultClick = useCallback((result) => {
     setShowResults(false);
     setSearchQuery('');
-    if (result.type === 'project') {
-      navigate(`/project/${result.id}`);
-    } else if (result.type === 'todo') {
-      navigate('/');
-    } else if (result.type === 'note') {
-      navigate('/');
-    } else if (result.type === 'area') {
-      navigate('/areas');
-    } else if (result.type === 'resource') {
-      navigate('/resources');
+    switch (result.type) {
+      case 'project':
+        navigate(`/project/${result.id}`);
+        break;
+      case 'todo':
+        result.project_id ? navigate(`/project/${result.project_id}`) : navigate('/');
+        break;
+      case 'note':
+        result.project_id ? navigate(`/project/${result.project_id}`) : navigate('/');
+        break;
+      case 'area':
+        navigate(`/area/${result.id}`);
+        break;
+      case 'resource':
+        navigate('/resources');
+        break;
+      case 'event':
+        navigate('/calendar');
+        break;
+      default:
+        navigate('/');
     }
   }, [navigate]);
 
   const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selectedIndex >= 0 && searchResults.length > 0) {
+        handleResultClick(searchResults[selectedIndex]);
+      } else if (searchQuery.trim().length >= 2) {
+        setShowResults(false);
+        navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+        setSearchQuery('');
+      }
+      return;
+    }
+
     if (!showResults || searchResults.length === 0) return;
 
     if (e.key === 'ArrowDown') {
@@ -90,9 +113,6 @@ export default function Header() {
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setSelectedIndex(prev => Math.max(prev - 1, -1));
-    } else if (e.key === 'Enter' && selectedIndex >= 0) {
-      e.preventDefault();
-      handleResultClick(searchResults[selectedIndex]);
     } else if (e.key === 'Escape') {
       setShowResults(false);
       inputRef.current?.blur();
@@ -106,7 +126,39 @@ export default function Header() {
       case 'note': return <FileText className="w-4 h-4" />;
       case 'area': return <FolderOpen className="w-4 h-4" />;
       case 'resource': return <Library className="w-4 h-4" />;
+      case 'event': return <CalendarDays className="w-4 h-4" />;
       default: return null;
+    }
+  };
+
+  const getTypeColors = (type) => {
+    switch (type) {
+      case 'project':
+        return 'bg-amber-50 dark:bg-amber-900/20 border-l-4 border-l-amber-500';
+      case 'todo':
+        return 'bg-emerald-50 dark:bg-emerald-900/20 border-l-4 border-l-emerald-500';
+      case 'note':
+        return 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500';
+      case 'area':
+        return 'bg-purple-50 dark:bg-purple-900/20 border-l-4 border-l-purple-500';
+      case 'resource':
+        return 'bg-rose-50 dark:bg-rose-900/20 border-l-4 border-l-rose-500';
+      case 'event':
+        return 'bg-cyan-50 dark:bg-cyan-900/20 border-l-4 border-l-cyan-500';
+      default:
+        return 'bg-surface-secondary';
+    }
+  };
+
+  const getIconColor = (type) => {
+    switch (type) {
+      case 'project': return 'text-amber-600 dark:text-amber-400';
+      case 'todo': return 'text-emerald-600 dark:text-emerald-400';
+      case 'note': return 'text-blue-600 dark:text-blue-400';
+      case 'area': return 'text-purple-600 dark:text-purple-400';
+      case 'resource': return 'text-rose-600 dark:text-rose-400';
+      case 'event': return 'text-cyan-600 dark:text-cyan-400';
+      default: return 'text-text-secondary';
     }
   };
 
@@ -160,33 +212,51 @@ export default function Header() {
             </div>
 
             {showResults && searchResults.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-2 glass overflow-hidden z-50 animate-slide-down">
+              <div className="absolute top-full left-0 right-0 mt-2 glass overflow-hidden z-50 animate-slide-down max-h-96 overflow-y-auto rounded-xl shadow-lg">
                 {searchResults.map((result, index) => (
                   <button
                     key={`${result.type}-${result.id}`}
                     onClick={() => handleResultClick(result)}
                     className={cn(
-                      "w-full flex items-center gap-3 px-4 py-3 text-left transition-colors",
-                      index === selectedIndex
-                        ? "bg-accent/10 text-accent"
-                        : "hover:bg-surface-secondary"
+                      "w-full flex items-center gap-3 px-4 py-3 text-left transition-all",
+                      getTypeColors(result.type),
+                      index === selectedIndex && "ring-2 ring-inset ring-accent"
                     )}
                   >
-                    <span className={cn(
-                      "flex-shrink-0",
-                      result.type === 'project' && "text-accent",
-                      result.type === 'todo' && (result.status === 'done' ? "text-success" : "text-text-secondary"),
-                      result.type === 'note' && "text-blue-500"
-                    )}>
+                    <span className={cn("flex-shrink-0", getIconColor(result.type))}>
                       {getIcon(result.type)}
                     </span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-text-primary truncate">
                         {result.title}
                       </p>
-                      <p className="text-xs text-text-secondary">
-                        {result.category}
-                      </p>
+                      <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                        <span className="text-xs text-text-secondary">
+                          {result.category}
+                        </span>
+                        {result.project_name && (
+                          <span
+                            className="text-xs px-1.5 py-0.5 rounded-full font-sans"
+                            style={{
+                              backgroundColor: result.project_color ? `${result.project_color}20` : 'var(--surface-secondary)',
+                              color: result.project_color || 'var(--text-secondary)'
+                            }}
+                          >
+                            {result.project_name}
+                          </span>
+                        )}
+                        {result.area_name && !result.project_name && (
+                          <span
+                            className="text-xs px-1.5 py-0.5 rounded-full font-sans"
+                            style={{
+                              backgroundColor: result.area_color ? `${result.area_color}20` : 'var(--surface-secondary)',
+                              color: result.area_color || 'var(--text-secondary)'
+                            }}
+                          >
+                            {result.area_name}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     {result.type === 'project' && result.color && (
                       <span
@@ -196,13 +266,16 @@ export default function Header() {
                     )}
                   </button>
                 ))}
+                <div className="px-4 py-2 bg-surface-secondary border-t border-border text-xs text-text-secondary text-center font-sans">
+                  Enter fuer alle Ergebnisse
+                </div>
               </div>
             )}
 
             {showResults && searchResults.length === 0 && searchQuery.length >= 2 && !isSearching && (
-              <div className="absolute top-full left-0 right-0 mt-2 glass p-4 z-50">
+              <div className="absolute top-full left-0 right-0 mt-2 glass p-4 z-50 rounded-xl">
                 <p className="text-sm text-text-secondary text-center">
-                  Keine Ergebnisse für "{searchQuery}"
+                  Keine Ergebnisse fuer "{searchQuery}"
                 </p>
               </div>
             )}

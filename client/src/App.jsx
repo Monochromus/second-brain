@@ -12,6 +12,7 @@ import CustomToolsPage from './pages/CustomToolsPage';
 import AreasPage from './pages/AreasPage';
 import AreaPage from './pages/AreaPage';
 import ResourcesPage from './pages/ResourcesPage';
+import SearchPage from './pages/SearchPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import LoadingSpinner from './components/shared/LoadingSpinner';
@@ -106,6 +107,7 @@ export default function App() {
         <Route path="calendar" element={<CalendarPage />} />
         <Route path="tools" element={<CustomToolsPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="search" element={<SearchPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
