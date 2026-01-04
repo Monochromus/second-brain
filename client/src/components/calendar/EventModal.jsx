@@ -31,14 +31,21 @@ export default function EventModal({ isOpen, onClose, event, onSave }) {
       });
     } else {
       const now = new Date();
-      const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
+      // Round to next full hour
+      const roundedStart = new Date(now);
+      roundedStart.setMinutes(0, 0, 0);
+      if (now.getMinutes() > 0) {
+        roundedStart.setHours(roundedStart.getHours() + 1);
+      }
+      const roundedEnd = new Date(roundedStart.getTime() + 60 * 60 * 1000);
+
       setFormData({
         title: '',
         description: '',
-        start_date: format(now, 'yyyy-MM-dd'),
-        start_time: format(now, 'HH:mm'),
-        end_date: format(now, 'yyyy-MM-dd'),
-        end_time: format(oneHourLater, 'HH:mm'),
+        start_date: format(roundedStart, 'yyyy-MM-dd'),
+        start_time: format(roundedStart, 'HH:mm'),
+        end_date: format(roundedEnd, 'yyyy-MM-dd'),
+        end_time: format(roundedEnd, 'HH:mm'),
         location: '',
         is_all_day: false
       });

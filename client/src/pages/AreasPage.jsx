@@ -94,7 +94,7 @@ export default function AreasPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="heading-1 mb-1">Areas</h1>
-          <p className="text-text-secondary">Deine Verantwortungsbereiche nach dem PARA-Prinzip</p>
+          <p className="text-text-secondary">Deine Verantwortungsbereiche – erstelle eigene Bereiche, die dich langfristig beschäftigen</p>
         </div>
         <button
           onClick={() => setModal({ open: true, area: null })}
@@ -116,7 +116,7 @@ export default function AreasPage() {
             Keine Areas vorhanden
           </h2>
           <p className="text-text-secondary mb-6 max-w-md mx-auto">
-            Areas sind dauerhafte Verantwortungsbereiche nach dem PARA-Prinzip.
+            Bereiche sind dauerhafte Themen ohne Enddatum – anders als Projekte.
             Beispiele: Arbeit, Gesundheit, Familie, Finanzen.
           </p>
         </div>

@@ -93,7 +93,7 @@ export default function ProjectsPage() {
             Projekte
           </h1>
           <p className="text-text-secondary">
-            Verwalte deine Projekte und verfolge den Fortschritt
+            Mach jedes Ziel zum Projekt – mit Aufgaben, Notizen und Deadline
           </p>
         </div>
         <button
@@ -109,6 +109,18 @@ export default function ProjectsPage() {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6 font-sans">
+        {/* Search */}
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Projekte suchen..."
+            className="input pl-10"
+          />
+        </div>
+
         {/* Status Tabs */}
         <div className="flex bg-surface-secondary rounded-lg p-1">
           {statusTabs.map(tab => (
@@ -124,18 +136,6 @@ export default function ProjectsPage() {
               {tab.label}
             </button>
           ))}
-        </div>
-
-        {/* Search */}
-        <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Projekte suchen..."
-            className="input pl-10"
-          />
         </div>
       </div>
 

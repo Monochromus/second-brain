@@ -1,15 +1,18 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useContext } from 'react';
 import { format, startOfMonth, endOfMonth, addMonths } from 'date-fns';
 import CalendarView from '../components/calendar/CalendarView';
 import EventModal from '../components/calendar/EventModal';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
-import { useCalendar, getCalendarRange } from '../hooks/useCalendar';
+import { useCalendar, useCalendarConnections, getCalendarRange } from '../hooks/useCalendar';
+import { AgentContext } from '../context/AgentContext';
 
 export default function CalendarPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [eventModal, setEventModal] = useState({ open: false, event: null });
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null });
+
+  const { registerRefreshListener } = useContext(AgentContext);
 
   const range = useMemo(() => {
     const start = startOfMonth(addMonths(currentMonth, -1));
@@ -25,8 +28,28 @@ export default function CalendarPage() {
     loading,
     createEvent,
     updateEvent,
-    deleteEvent
+    deleteEvent,
+    refetch
   } = useCalendar(range);
+
+  const {
+    connections: calendars,
+    updateConnection
+  } = useCalendarConnections();
+
+  // Register listener for AI Agent calendar updates
+  useEffect(() => {
+    const unsubscribe = registerRefreshListener('calendar', refetch);
+    return unsubscribe;
+  }, [registerRefreshListener, refetch]);
+
+  const handleToggleCalendar = async (calendarId, isActive) => {
+    await updateConnection(calendarId, { is_active: isActive });
+  };
+
+  const handleUpdateCalendarColor = async (calendarId, color) => {
+    await updateConnection(calendarId, { color });
+  };
 
   const handleSaveEvent = async (data) => {
     if (eventModal.event) {
@@ -54,8 +77,12 @@ export default function CalendarPage() {
         onEditEvent={(event) => setEventModal({ open: true, event })}
         onDeleteEvent={(id) => setDeleteConfirm({ open: true, id })}
         onAddEvent={() => setEventModal({ open: true, event: null })}
+        onCreateEvent={createEvent}
         selectedDate={selectedDate}
         onDateSelect={setSelectedDate}
+        calendars={calendars}
+        onToggleCalendar={handleToggleCalendar}
+        onUpdateCalendarColor={handleUpdateCalendarColor}
       />
 
       <EventModal

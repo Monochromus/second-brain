@@ -455,6 +455,23 @@ function runMigrations() {
   `);
   console.log('Migration: Ensured email_attachments table exists');
 
+  // Migration: Add color and name to calendar_connections
+  try {
+    db.prepare('SELECT color FROM calendar_connections LIMIT 1').get();
+  } catch {
+    db.exec("ALTER TABLE calendar_connections ADD COLUMN color TEXT DEFAULT '#14B8A6'");
+    console.log('Migration: Added color to calendar_connections');
+  }
+
+  try {
+    db.prepare('SELECT name FROM calendar_connections LIMIT 1').get();
+  } catch {
+    db.exec("ALTER TABLE calendar_connections ADD COLUMN name TEXT");
+    // Set default names based on provider
+    db.exec("UPDATE calendar_connections SET name = CASE provider WHEN 'outlook' THEN 'Outlook' WHEN 'icloud' THEN 'iCloud' ELSE provider END WHERE name IS NULL");
+    console.log('Migration: Added name to calendar_connections');
+  }
+
   // Create email_drafts table
   db.exec(`
     CREATE TABLE IF NOT EXISTS email_drafts (

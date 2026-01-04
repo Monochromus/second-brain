@@ -71,7 +71,7 @@ export default function ResourcesPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="heading-1 mb-1">Ressourcen</h1>
-          <p className="text-text-secondary">Dein Wissensspeicher</p>
+          <p className="text-text-secondary">Sammle Wissen, Links und Referenzmaterial für später</p>
         </div>
         <button
           onClick={() => setModal({ open: true, resource: null })}

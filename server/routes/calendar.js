@@ -192,20 +192,38 @@ router.delete('/events/:id', asyncHandler(async (req, res) => {
 router.get('/connections', asyncHandler(async (req, res) => {
   const userId = req.userId;
 
-  const connections = db.prepare('SELECT id, provider, calendar_url, is_active, last_sync FROM calendar_connections WHERE user_id = ?')
+  const connections = db.prepare('SELECT id, provider, calendar_url, name, color, is_active, last_sync FROM calendar_connections WHERE user_id = ?')
     .all(userId);
 
+  // Get local calendar settings from user settings
+  const user = db.prepare('SELECT settings FROM users WHERE id = ?').get(userId);
+  const settings = JSON.parse(user?.settings || '{}');
+  const localSettings = settings.localCalendar || {};
+
+  // Always include the local calendar as a virtual entry
+  const localCalendar = {
+    id: 'local',
+    provider: 'local',
+    name: localSettings.name || 'Mein Kalender',
+    color: localSettings.color || '#14B8A6', // Teal/Petrol
+    is_active: localSettings.is_active ?? true,
+    isVirtual: true
+  };
+
   res.json({
-    connections: connections.map(c => ({
-      ...c,
-      is_active: Boolean(c.is_active)
-    }))
+    connections: [
+      localCalendar,
+      ...connections.map(c => ({
+        ...c,
+        is_active: Boolean(c.is_active)
+      }))
+    ]
   });
 }));
 
 router.post('/connections', asyncHandler(async (req, res) => {
   const userId = req.userId;
-  const { provider, calendar_url, username, password } = req.body;
+  const { provider, calendar_url, username, password, name, color } = req.body;
 
   if (!provider || !calendar_url) {
     return res.status(400).json({ error: 'Provider und Kalender-URL sind erforderlich.' });
@@ -219,25 +237,83 @@ router.post('/connections', asyncHandler(async (req, res) => {
     ? JSON.stringify({ username, password })
     : null;
 
+  const defaultName = provider === 'outlook' ? 'Outlook' : 'iCloud';
+  const defaultColor = provider === 'outlook' ? '#3B82F6' : '#10B981';
+
   const existing = db.prepare('SELECT id FROM calendar_connections WHERE user_id = ? AND provider = ?')
     .get(userId, provider);
 
   if (existing) {
     db.prepare(`
       UPDATE calendar_connections
-      SET calendar_url = ?, credentials = ?, is_active = 1
+      SET calendar_url = ?, credentials = ?, is_active = 1, name = COALESCE(?, name), color = COALESCE(?, color)
       WHERE id = ?
-    `).run(calendar_url, credentials, existing.id);
+    `).run(calendar_url, credentials, name, color, existing.id);
 
     return res.json({ message: 'Kalenderverbindung aktualisiert.' });
   }
 
   db.prepare(`
-    INSERT INTO calendar_connections (user_id, provider, calendar_url, credentials)
-    VALUES (?, ?, ?, ?)
-  `).run(userId, provider, calendar_url, credentials);
+    INSERT INTO calendar_connections (user_id, provider, calendar_url, credentials, name, color)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(userId, provider, calendar_url, credentials, name || defaultName, color || defaultColor);
 
   res.status(201).json({ message: 'Kalenderverbindung hinzugefügt.' });
+}));
+
+router.put('/connections/:id', asyncHandler(async (req, res) => {
+  const userId = req.userId;
+  const { id } = req.params;
+  const { name, color, is_active } = req.body;
+
+  // Handle local calendar settings stored in user settings
+  if (id === 'local') {
+    const user = db.prepare('SELECT settings FROM users WHERE id = ?').get(userId);
+    const settings = JSON.parse(user.settings || '{}');
+    settings.localCalendar = {
+      ...settings.localCalendar,
+      name: name !== undefined ? name : (settings.localCalendar?.name || 'Mein Kalender'),
+      color: color !== undefined ? color : (settings.localCalendar?.color || '#14B8A6'),
+      is_active: is_active !== undefined ? is_active : (settings.localCalendar?.is_active ?? true)
+    };
+    db.prepare('UPDATE users SET settings = ? WHERE id = ?').run(JSON.stringify(settings), userId);
+    return res.json({ message: 'Kalender aktualisiert.', calendar: settings.localCalendar });
+  }
+
+  const existing = db.prepare('SELECT * FROM calendar_connections WHERE id = ? AND user_id = ?')
+    .get(id, userId);
+
+  if (!existing) {
+    return res.status(404).json({ error: 'Kalenderverbindung nicht gefunden.' });
+  }
+
+  const updates = [];
+  const params = [];
+
+  if (name !== undefined) {
+    updates.push('name = ?');
+    params.push(name);
+  }
+  if (color !== undefined) {
+    updates.push('color = ?');
+    params.push(color);
+  }
+  if (is_active !== undefined) {
+    updates.push('is_active = ?');
+    params.push(is_active ? 1 : 0);
+  }
+
+  if (updates.length === 0) {
+    return res.status(400).json({ error: 'Keine Änderungen angegeben.' });
+  }
+
+  params.push(id, userId);
+  db.prepare(`UPDATE calendar_connections SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`)
+    .run(...params);
+
+  const updated = db.prepare('SELECT id, provider, name, color, is_active FROM calendar_connections WHERE id = ?').get(id);
+
+  res.json({ message: 'Kalender aktualisiert.', calendar: { ...updated, is_active: Boolean(updated.is_active) } });
 }));
 
 router.delete('/connections/:id', asyncHandler(async (req, res) => {

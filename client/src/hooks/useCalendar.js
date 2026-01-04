@@ -129,6 +129,19 @@ export function useCalendarConnections() {
     }
   };
 
+  const updateConnection = async (id, data) => {
+    try {
+      const response = await api.put(`/calendar/connections/${id}`, data);
+      setConnections((prev) => prev.map((c) =>
+        c.id === id ? { ...c, ...data } : c
+      ));
+      return response.calendar;
+    } catch (err) {
+      toast.error(err.message);
+      throw err;
+    }
+  };
+
   const removeConnection = async (id) => {
     try {
       await api.delete(`/calendar/connections/${id}`);
@@ -145,6 +158,7 @@ export function useCalendarConnections() {
     loading,
     refetch: fetchConnections,
     addConnection,
+    updateConnection,
     removeConnection
   };
 }
