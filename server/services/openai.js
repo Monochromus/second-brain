@@ -80,9 +80,17 @@ Deine Fähigkeiten:
 - Ressourcen erstellen und mit Projekten verknüpfen
 - Kalendertermine abrufen und neue erstellen
 - Areas verwalten
-- Widgets erstellen, anpassen und löschen
+- Custom Tools erstellen, anpassen und löschen (interaktive Mini-Apps wie Timer, Uhren, Rechner, Kanban-Boards)
 - E-Mails durchsuchen, lesen und zusammenfassen
 - E-Mail-Entwürfe für Antworten und neue Nachrichten erstellen
+
+CUSTOM TOOLS REGELN:
+- Wenn der Nutzer ein Custom Tool wünscht (z.B. "Erstelle mir einen Timer", "Ich brauche eine Weltuhr"):
+  1. Formuliere eine DETAILLIERTE Beschreibung basierend auf den Wünschen des Nutzers
+  2. Füge nützliche Details hinzu (Farben, Interaktivität, Anzeigen)
+  3. Nutze create_custom_tool mit dieser Beschreibung
+- Maximal 3 Custom Tools sind erlaubt
+- Beispiel: Nutzer sagt "Ich brauche einen Pomodoro Timer" → Du erstellst: "Ein Pomodoro-Timer mit 25 Minuten Arbeitszeit und 5 Minuten Pause, Start/Stop/Reset-Buttons, visuelle Fortschrittsanzeige und akustischem Signal bei Ablauf"
 
 E-MAIL-REGELN (SEHR WICHTIG):
 - Du kannst E-Mails durchsuchen (search_emails), lesen (get_email_content) und Threads anzeigen (get_email_thread)
@@ -475,8 +483,8 @@ const tools = [
   {
     type: "function",
     function: {
-      name: "list_widgets",
-      description: "Listet alle Widgets des Nutzers auf. Widgets sind interaktive Mini-Apps wie Uhren, Timer, Rechner.",
+      name: "list_custom_tools",
+      description: "Listet alle Custom Tools des Nutzers auf. Custom Tools sind interaktive Mini-Apps wie Uhren, Timer, Rechner, Kanban-Boards.",
       parameters: {
         type: "object",
         properties: {}
@@ -486,12 +494,12 @@ const tools = [
   {
     type: "function",
     function: {
-      name: "create_widget",
-      description: "Erstellt ein neues Widget basierend auf einer Beschreibung. Das Widget wird von der KI generiert und kann interaktiv sein (Timer, Uhren, Rechner, etc.).",
+      name: "create_custom_tool",
+      description: "Erstellt ein neues Custom Tool basierend auf einer Beschreibung. Das Tool wird von der KI generiert und kann interaktiv sein (Timer, Uhren, Rechner, Kanban-Boards, etc.). WICHTIG: Formuliere eine detaillierte, präzise Beschreibung basierend auf den Wünschen des Nutzers. Nur möglich wenn weniger als 3 Tools vorhanden sind.",
       parameters: {
         type: "object",
         properties: {
-          description: { type: "string", description: "Beschreibung des gewünschten Widgets in natürlicher Sprache, z.B. 'Ein Pomodoro-Timer mit 25 Minuten' oder 'Eine Weltuhr für Berlin und Tokyo'" }
+          description: { type: "string", description: "Detaillierte Beschreibung des gewünschten Tools in natürlicher Sprache, z.B. 'Ein Pomodoro-Timer mit 25 Minuten Arbeitszeit und 5 Minuten Pause, mit Start/Stop-Button und akustischem Signal' oder 'Eine Weltuhr die die Zeit in Berlin, New York und Tokyo anzeigt mit analoger Uhrenanzeige'" }
         },
         required: ["description"]
       }
@@ -500,13 +508,13 @@ const tools = [
   {
     type: "function",
     function: {
-      name: "update_widget",
-      description: "Aktualisiert ein bestehendes Widget mit einer neuen Beschreibung. Das Widget wird neu generiert.",
+      name: "update_custom_tool",
+      description: "Aktualisiert ein bestehendes Custom Tool mit einer neuen Beschreibung. Das Tool wird neu generiert.",
       parameters: {
         type: "object",
         properties: {
-          id: { type: "string", description: "ID des Widgets" },
-          description: { type: "string", description: "Neue Beschreibung für das Widget" }
+          id: { type: "string", description: "ID des Tools" },
+          description: { type: "string", description: "Neue Beschreibung für das Tool" }
         },
         required: ["id", "description"]
       }
@@ -515,12 +523,12 @@ const tools = [
   {
     type: "function",
     function: {
-      name: "delete_widget",
-      description: "Löscht ein Widget",
+      name: "delete_custom_tool",
+      description: "Löscht ein Custom Tool",
       parameters: {
         type: "object",
         properties: {
-          id: { type: "string", description: "ID des zu löschenden Widgets" }
+          id: { type: "string", description: "ID des zu löschenden Tools" }
         },
         required: ["id"]
       }
@@ -1174,8 +1182,8 @@ async function executeToolCall(toolName, args, userId) {
         return { success: true, message: `Element wiederhergestellt.` };
       }
 
-      case 'list_widgets': {
-        const widgets = db.prepare(`
+      case 'list_custom_tools': {
+        const tools = db.prepare(`
           SELECT id, name, description, status, error_message, created_at
           FROM custom_tools
           WHERE user_id = ?
@@ -1183,19 +1191,19 @@ async function executeToolCall(toolName, args, userId) {
         `).all(userId);
         return {
           success: true,
-          widgets,
-          count: widgets.length,
-          maxWidgets: 3
+          tools,
+          count: tools.length,
+          maxTools: 3
         };
       }
 
-      case 'create_widget': {
-        // Check widget limit (max 3)
-        const widgetCount = db.prepare('SELECT COUNT(*) as count FROM custom_tools WHERE user_id = ?').get(userId);
-        if (widgetCount.count >= 3) {
+      case 'create_custom_tool': {
+        // Check tool limit (max 3)
+        const toolCount = db.prepare('SELECT COUNT(*) as count FROM custom_tools WHERE user_id = ?').get(userId);
+        if (toolCount.count >= 3) {
           return {
             success: false,
-            error: 'Du hast bereits 3 Widgets. Lösche ein Widget, um ein neues zu erstellen.'
+            error: 'Du hast bereits 3 Custom Tools. Lösche ein Tool, um ein neues zu erstellen.'
           };
         }
 
@@ -1203,12 +1211,12 @@ async function executeToolCall(toolName, args, userId) {
         const { generateToolCode } = require('./codeGenerator');
 
         const toolId = uuidv4();
-        const toolName = `Widget ${new Date().toLocaleDateString('de-DE')}`;
+        const toolName = `Tool ${new Date().toLocaleDateString('de-DE')}`;
 
         // Get max position
         const maxPos = db.prepare('SELECT MAX(position) as max FROM custom_tools WHERE user_id = ?').get(userId);
 
-        // Create widget in 'generating' status
+        // Create tool in 'generating' status
         db.prepare(`
           INSERT INTO custom_tools (id, user_id, name, description, status, position)
           VALUES (?, ?, ?, ?, 'generating', ?)
@@ -1289,15 +1297,15 @@ async function executeToolCall(toolName, args, userId) {
 
         return {
           success: true,
-          widgetId: toolId,
-          message: `Widget wird erstellt: "${args.description}". Es erscheint in wenigen Sekunden auf der Widgets-Seite.`
+          toolId: toolId,
+          message: `Custom Tool wird erstellt: "${args.description}". Es erscheint in wenigen Sekunden auf der Custom Tools Seite.`
         };
       }
 
-      case 'update_widget': {
-        const widget = db.prepare('SELECT * FROM custom_tools WHERE id = ? AND user_id = ?').get(args.id, userId);
-        if (!widget) {
-          return { success: false, error: 'Widget nicht gefunden.' };
+      case 'update_custom_tool': {
+        const tool = db.prepare('SELECT * FROM custom_tools WHERE id = ? AND user_id = ?').get(args.id, userId);
+        if (!tool) {
+          return { success: false, error: 'Custom Tool nicht gefunden.' };
         }
 
         const { generateToolCode } = require('./codeGenerator');
@@ -1325,7 +1333,7 @@ async function executeToolCall(toolName, args, userId) {
               `).run(
                 result.code,
                 JSON.stringify(result.parameters || {}),
-                result.name || widget.name,
+                result.name || tool.name,
                 result.refreshInterval || 0,
                 args.id
               );
@@ -1375,18 +1383,18 @@ async function executeToolCall(toolName, args, userId) {
 
         return {
           success: true,
-          message: `Widget "${widget.name}" wird aktualisiert mit: "${args.description}"`
+          message: `Custom Tool "${tool.name}" wird aktualisiert mit: "${args.description}"`
         };
       }
 
-      case 'delete_widget': {
-        const widget = db.prepare('SELECT * FROM custom_tools WHERE id = ? AND user_id = ?').get(args.id, userId);
-        if (!widget) {
-          return { success: false, error: 'Widget nicht gefunden.' };
+      case 'delete_custom_tool': {
+        const tool = db.prepare('SELECT * FROM custom_tools WHERE id = ? AND user_id = ?').get(args.id, userId);
+        if (!tool) {
+          return { success: false, error: 'Custom Tool nicht gefunden.' };
         }
 
         db.prepare('DELETE FROM custom_tools WHERE id = ?').run(args.id);
-        return { success: true, message: `Widget "${widget.name}" gelöscht.` };
+        return { success: true, message: `Custom Tool "${tool.name}" gelöscht.` };
       }
 
       case 'web_research': {

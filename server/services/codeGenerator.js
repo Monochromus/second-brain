@@ -139,6 +139,9 @@ WICHTIG - SYNTAXREGELN:
 - CSS muss IMMER in Strings (Template Literals) stehen: \`background: linear-gradient(...)\`
 - Verwende Template Literals (\`...\`) für mehrzeiligen HTML/CSS Content
 - Escape Backticks in verschachtelten Template Literals mit \\
+- KRITISCH: Verwende IMMER \`let\` (nicht \`const\`) für Variablen die später geändert werden (z.B. html += ...)
+- NIEMALS: const html = ...; html += ... (das ist ein Fehler!)
+- RICHTIG: let html = ...; html += ... (so ist es korrekt)
 - TESTE den Code mental bevor du ihn ausgibst
 
 VERFÜGBARE HELPER:
@@ -305,12 +308,31 @@ async function generateToolCode(userId, toolId, description) {
       };
     }
 
+    // Auto-fix common LLM mistake: const variable that gets modified later
+    let fixedCode = parsed.code;
+
+    // Find all const declarations and check if they're modified later with +=
+    const constMatches = fixedCode.matchAll(/const\s+(\w+)\s*=/g);
+    for (const match of constMatches) {
+      const varName = match[1];
+      // Check if this variable is later modified with += or similar
+      const modifyPattern = new RegExp(`\\b${varName}\\s*\\+=`, 'g');
+      if (modifyPattern.test(fixedCode)) {
+        // Replace const with let for this variable
+        fixedCode = fixedCode.replace(
+          new RegExp(`const\\s+(${varName})\\s*=`),
+          'let $1 ='
+        );
+        console.log(`[CodeGenerator] Auto-fixed: const ${varName} → let ${varName}`);
+      }
+    }
+
     return {
       success: true,
       name: parsed.name || 'Neues Tool',
       parameters: parsed.parameters || {},
       refreshInterval: parsed.refreshInterval || 0,
-      code: parsed.code
+      code: fixedCode
     };
   } catch (err) {
     console.error('Code generation error:', err);
