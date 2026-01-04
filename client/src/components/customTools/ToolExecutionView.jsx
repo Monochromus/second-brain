@@ -145,7 +145,7 @@ export default function ToolExecutionView({
           ref={iframeRef}
           srcDoc={htmlContent}
           className="w-full h-full border-0"
-          sandbox="allow-scripts"
+          sandbox="allow-scripts allow-same-origin"
           title={tool.name}
         />
       );

@@ -3,6 +3,7 @@ import {
   MoreVertical, Pencil, Trash2, RefreshCw, Settings,
   Loader2, AlertCircle, Maximize2, Minimize2, X
 } from 'lucide-react';
+import { api } from '../../lib/api';
 import ToolParameterPanel from './ToolParameterPanel';
 
 export default function ToolContainer({
@@ -10,10 +11,10 @@ export default function ToolContainer({
   onExecute,
   onEdit,
   onDelete,
-  onRegenerate,
-  onUpdateParameters
+  onUpdateParameters,
+  onToolUpdate
 }) {
-  const [result, setResult] = useState(tool.last_result);
+  const [result, setResult] = useState(tool.last_result || null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [showParams, setShowParams] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -21,17 +22,75 @@ export default function ToolContainer({
   const [error, setError] = useState(null);
   const [parameters, setParameters] = useState(tool.current_parameters || {});
   const iframeRef = useRef(null);
+  const hasAutoExecuted = useRef(false);
+  const prevStatus = useRef(tool.status);
+  const pollingRef = useRef(null);
 
-  // Auto-execute on mount if ready and no result
+  // Polling fallback for when WebSocket doesn't work
   useEffect(() => {
-    if (tool.status === 'ready' && !tool.last_result) {
+    // Start polling if tool is generating
+    if (tool.status === 'generating') {
+      console.log('Starting polling for tool:', tool.id);
+
+      pollingRef.current = setInterval(async () => {
+        try {
+          const response = await api.get(`/custom-tools/${tool.id}`);
+          const updatedTool = response.tool;
+
+          if (updatedTool.status !== 'generating') {
+            console.log('Tool finished generating:', updatedTool.status);
+            // Stop polling
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+
+            // Notify parent about the update
+            if (onToolUpdate) {
+              onToolUpdate(updatedTool);
+            }
+
+            // Update local result if available
+            if (updatedTool.last_result) {
+              setResult(updatedTool.last_result);
+            }
+          }
+        } catch (err) {
+          console.error('Polling error:', err);
+        }
+      }, 2000); // Poll every 2 seconds
+    }
+
+    // Cleanup polling on unmount or when status changes
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [tool.status, tool.id, onToolUpdate]);
+
+  // Auto-execute when tool becomes ready (either on mount or after generation)
+  useEffect(() => {
+    const wasGenerating = prevStatus.current === 'generating';
+    const isNowReady = tool.status === 'ready';
+    const hasResult = tool.last_result && tool.last_result.content;
+
+    // Execute if: just became ready OR is ready on mount without result
+    if (isNowReady && !hasResult && !hasAutoExecuted.current) {
+      hasAutoExecuted.current = true;
       handleExecute();
     }
-  }, [tool.status]);
 
-  // Update result when tool changes
+    // Reset flag if status changes to generating
+    if (tool.status === 'generating') {
+      hasAutoExecuted.current = false;
+    }
+
+    prevStatus.current = tool.status;
+  }, [tool.status, tool.last_result]);
+
+  // Update result when tool.last_result changes
   useEffect(() => {
-    if (tool.last_result) {
+    if (tool.last_result && tool.last_result.content !== undefined) {
       setResult(tool.last_result);
     }
   }, [tool.last_result]);
@@ -80,7 +139,7 @@ export default function ToolContainer({
       return (
         <div className="flex flex-col items-center justify-center h-full min-h-[200px]">
           <Loader2 className="w-10 h-10 text-accent animate-spin mb-3" />
-          <span className="text-sm text-text-secondary">Tool wird generiert...</span>
+          <span className="text-sm text-text-secondary text-center">Tool wird generiert...<br/>Bei komplexen Anfragen kann dies mehrere Minuten dauern.</span>
         </div>
       );
     }
@@ -90,13 +149,9 @@ export default function ToolContainer({
         <div className="flex flex-col items-center justify-center h-full min-h-[200px] p-4">
           <AlertCircle className="w-10 h-10 text-error mb-3" />
           <p className="text-sm text-error text-center mb-4">{tool.error_message}</p>
-          <button
-            onClick={() => onRegenerate(tool.id, tool.description)}
-            className="btn btn-secondary btn-sm"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Neu generieren
-          </button>
+          <p className="text-xs text-text-secondary text-center">
+            Lösche dieses Tool und erstelle es mit einer anderen Beschreibung neu.
+          </p>
         </div>
       );
     }
@@ -114,10 +169,11 @@ export default function ToolContainer({
       );
     }
 
-    if (!result) {
+    if (!result || result.content === undefined || result.content === null) {
       return (
         <div className="flex flex-col items-center justify-center h-full min-h-[200px]">
           <Loader2 className="w-10 h-10 text-accent animate-spin opacity-50" />
+          <span className="text-xs text-text-secondary mt-2">Wird geladen...</span>
         </div>
       );
     }
@@ -126,7 +182,7 @@ export default function ToolContainer({
       return (
         <div className="flex flex-col items-center justify-center h-full min-h-[200px] p-4">
           <AlertCircle className="w-10 h-10 text-error mb-3" />
-          <p className="text-sm text-error text-center">{result.content}</p>
+          <p className="text-sm text-error text-center">{result.content || 'Unbekannter Fehler'}</p>
         </div>
       );
     }
@@ -161,7 +217,7 @@ export default function ToolContainer({
           ref={iframeRef}
           srcDoc={htmlContent}
           className="w-full h-full min-h-[200px] border-0"
-          sandbox="allow-scripts"
+          sandbox="allow-scripts allow-same-origin"
           title={tool.name}
         />
       );
@@ -176,7 +232,9 @@ export default function ToolContainer({
       );
     }
 
-    return <div className="p-4">{String(result.content)}</div>;
+    // Fallback for unknown types - safely convert to string
+    const contentStr = result.content != null ? String(result.content) : '';
+    return <div className="p-4 text-text-primary">{contentStr}</div>;
   };
 
   return (
@@ -249,13 +307,6 @@ export default function ToolContainer({
                   >
                     <Pencil className="w-4 h-4" />
                     Bearbeiten
-                  </button>
-                  <button
-                    onClick={() => { onRegenerate(tool.id, tool.description); setMenuOpen(false); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-surface-secondary"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                    Neu generieren
                   </button>
                   <button
                     onClick={() => { onDelete(tool.id); setMenuOpen(false); }}

@@ -50,18 +50,40 @@ export function useCustomTools() {
 
       // Handle tool updates
       socket.on('tool:updated', ({ toolId, status, error: toolError, result, refreshInterval }) => {
-        setTools(prev => prev.map(tool => {
-          if (tool.id === toolId) {
-            return {
-              ...tool,
-              status,
-              error_message: toolError || null,
-              last_result: result || tool.last_result,
-              refresh_interval: refreshInterval !== undefined ? refreshInterval : tool.refresh_interval
-            };
+        setTools(prev => {
+          const toolIndex = prev.findIndex(t => t.id === toolId);
+
+          // If tool not found in state, we need to refetch
+          if (toolIndex === -1) {
+            console.log('Tool not found in state, refetching...', toolId);
+            // Trigger a refetch asynchronously
+            setTimeout(() => {
+              api.get('/custom-tools').then(response => {
+                setTools(response.tools || []);
+                setLimits(response.limits || { maxTools: 10, currentCount: 0 });
+              }).catch(console.error);
+            }, 100);
+            return prev;
           }
-          return tool;
-        }));
+
+          return prev.map(tool => {
+            if (tool.id === toolId) {
+              const updatedTool = {
+                ...tool,
+                status,
+                error_message: toolError || null,
+                refresh_interval: refreshInterval !== undefined ? refreshInterval : tool.refresh_interval
+              };
+              // Only update last_result if result is actually provided
+              if (result !== undefined && result !== null) {
+                updatedTool.last_result = result;
+                updatedTool.last_result_at = new Date().toISOString();
+              }
+              return updatedTool;
+            }
+            return tool;
+          });
+        });
 
         if (status === 'ready') {
           toast.success('Tool wurde erfolgreich generiert!');
@@ -131,9 +153,10 @@ export function useCustomTools() {
   const generateTool = async (description, name) => {
     try {
       const response = await api.post('/custom-tools/generate', { description, name });
-      setTools(prev => [response.tool, ...prev]);
+      // Add new tool at the end to maintain position order
+      setTools(prev => [...prev, response.tool]);
       setLimits(prev => ({ ...prev, currentCount: prev.currentCount + 1 }));
-      toast.success('Tool wird generiert...');
+      toast.success('Tool wird generiert... Bei komplexen Anfragen kann dies bis zu mehreren Minuten dauern.');
       return response.tool;
     } catch (err) {
       toast.error(err.message);

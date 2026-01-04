@@ -23,6 +23,83 @@ function getUserApiKey(userId) {
   return null;
 }
 
+// Get user's preferred model from settings (only if they have their own API key)
+function getUserModel(userId) {
+  const userApiKey = getUserApiKey(userId);
+  if (!userApiKey) {
+    return null; // No own API key = no model selection
+  }
+
+  const user = db.prepare('SELECT settings FROM users WHERE id = ?').get(userId);
+  if (user && user.settings) {
+    try {
+      const settings = JSON.parse(user.settings);
+      return settings.openaiModel || null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+// Models that require max_completion_tokens instead of max_tokens
+const NEW_API_MODELS = [
+  'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano',
+  'gpt-5', 'gpt-5-mini', 'gpt-5-nano',
+  'o1', 'o1-mini', 'o1-preview',
+  'o3', 'o3-mini'
+];
+
+// Reasoning models (no temperature, no response_format)
+const REASONING_MODELS = [
+  'o1', 'o1-mini', 'o1-preview',
+  'o3', 'o3-mini'
+];
+
+// Models that support custom temperature (older models only)
+const TEMPERATURE_SUPPORTED_MODELS = [
+  'gpt-4o', 'gpt-4o-mini',
+  'gpt-4-turbo', 'gpt-4',
+  'gpt-3.5-turbo', 'gpt-3.5'
+];
+
+// Check if model is a reasoning model (restricted parameters)
+function isReasoningModel(model) {
+  return REASONING_MODELS.some(m => model.startsWith(m));
+}
+
+// Models that need higher token limits (reasoning/thinking models)
+const HIGH_TOKEN_MODELS = [
+  'gpt-5', 'gpt-5-mini', 'gpt-5-nano',
+  'o1', 'o1-mini', 'o1-preview',
+  'o3', 'o3-mini'
+];
+
+// Get the correct token parameter name and value for the model
+function getTokenParams(model, baseTokenCount) {
+  const isNewModel = NEW_API_MODELS.some(m => model.startsWith(m));
+  const needsHigherLimit = HIGH_TOKEN_MODELS.some(m => model.startsWith(m));
+
+  // Reasoning/thinking models need much higher limits because they use tokens for thinking
+  const tokenCount = needsHigherLimit ? 16000 : baseTokenCount;
+
+  if (isNewModel) {
+    return { max_completion_tokens: tokenCount };
+  }
+  return { max_tokens: tokenCount };
+}
+
+// Check if model supports response_format
+function supportsResponseFormat(model) {
+  return !isReasoningModel(model);
+}
+
+// Check if model supports custom temperature
+function supportsTemperature(model) {
+  // Only older models support custom temperature
+  return TEMPERATURE_SUPPORTED_MODELS.some(m => model.startsWith(m));
+}
+
 // Create OpenAI client with user's API key or fallback to environment variable
 function createOpenAIClient(userId) {
   const userApiKey = getUserApiKey(userId);
@@ -56,6 +133,13 @@ TECHNISCHE REGELN:
 4. Du kannst <script> Tags im HTML für Browser-Interaktivität einbetten
 5. Du kannst <style> Tags für CSS einbetten
 6. KEINE externen URLs, fetch, oder imports
+
+WICHTIG - SYNTAXREGELN:
+- Der Code muss VALIDES JavaScript sein
+- CSS muss IMMER in Strings (Template Literals) stehen: \`background: linear-gradient(...)\`
+- Verwende Template Literals (\`...\`) für mehrzeiligen HTML/CSS Content
+- Escape Backticks in verschachtelten Template Literals mit \\
+- TESTE den Code mental bevor du ihn ausgibst
 
 VERFÜGBARE HELPER:
 - formatDate(date, format) - 'YYYY-MM-DD HH:mm:ss'
@@ -124,8 +208,13 @@ async function generateToolCode(userId, toolId, description) {
   }
 
   try {
-    const response = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+    // Use user's model selection if they have their own API key
+    const userModel = getUserModel(userId);
+    const model = userModel || process.env.OPENAI_MODEL || 'gpt-4o-mini';
+
+    // Build request options based on model capabilities
+    const requestOptions = {
+      model,
       messages: [
         {
           role: 'system',
@@ -136,17 +225,45 @@ async function generateToolCode(userId, toolId, description) {
           content: `Erstelle ein Widget für: ${description}`
         }
       ],
-      temperature: 0.7,
-      max_tokens: 4000,
-      response_format: { type: 'json_object' }
+      ...getTokenParams(model, 4000)
+    };
+
+    // Only add temperature for models that support it
+    if (supportsTemperature(model)) {
+      requestOptions.temperature = 0.7;
+    }
+
+    // Only add response_format for models that support it
+    if (supportsResponseFormat(model)) {
+      requestOptions.response_format = { type: 'json_object' };
+    }
+
+    console.log(`[CodeGenerator] Calling model: ${model} for tool: ${toolId}`);
+    console.log(`[CodeGenerator] Request options:`, JSON.stringify({
+      model: requestOptions.model,
+      hasTemperature: 'temperature' in requestOptions,
+      hasResponseFormat: 'response_format' in requestOptions,
+      tokenParam: Object.keys(requestOptions).find(k => k.includes('token'))
+    }));
+
+    const response = await openai.chat.completions.create(requestOptions);
+
+    console.log(`[CodeGenerator] Response received for tool: ${toolId}`);
+    console.log(`[CodeGenerator] Response structure:`, {
+      hasChoices: !!response.choices,
+      choicesLength: response.choices?.length,
+      hasMessage: !!response.choices?.[0]?.message,
+      contentLength: response.choices?.[0]?.message?.content?.length,
+      finishReason: response.choices?.[0]?.finish_reason
     });
 
     const content = response.choices[0]?.message?.content;
 
     if (!content) {
+      console.error(`[CodeGenerator] Empty response for tool ${toolId}:`, JSON.stringify(response, null, 2));
       return {
         success: false,
-        error: 'Keine Antwort vom AI-Modell erhalten.'
+        error: `Keine Antwort vom AI-Modell erhalten. (Model: ${model}, Finish: ${response.choices?.[0]?.finish_reason || 'unknown'})`
       };
     }
 
@@ -241,8 +358,13 @@ async function improveToolCode(userId, currentCode, currentParams, feedback) {
   }
 
   try {
-    const response = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+    // Use user's model selection if they have their own API key
+    const userModel = getUserModel(userId);
+    const model = userModel || process.env.OPENAI_MODEL || 'gpt-4o-mini';
+
+    // Build request options based on model capabilities
+    const requestOptions = {
+      model,
       messages: [
         {
           role: 'system',
@@ -253,10 +375,20 @@ async function improveToolCode(userId, currentCode, currentParams, feedback) {
           content: `Hier ist der aktuelle Code:\n\n${currentCode}\n\nAktuelle Parameter:\n${JSON.stringify(currentParams, null, 2)}\n\nVerbessere den Code basierend auf diesem Feedback:\n${feedback}`
         }
       ],
-      temperature: 0.7,
-      max_tokens: 4000,
-      response_format: { type: 'json_object' }
-    });
+      ...getTokenParams(model, 4000)
+    };
+
+    // Only add temperature for models that support it
+    if (supportsTemperature(model)) {
+      requestOptions.temperature = 0.7;
+    }
+
+    // Only add response_format for models that support it
+    if (supportsResponseFormat(model)) {
+      requestOptions.response_format = { type: 'json_object' };
+    }
+
+    const response = await openai.chat.completions.create(requestOptions);
 
     const content = response.choices[0]?.message?.content;
 

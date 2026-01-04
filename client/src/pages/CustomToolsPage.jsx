@@ -75,10 +75,11 @@ export default function CustomToolsPage() {
     }
   };
 
-  // Handle regenerate
-  const handleRegenerate = async (toolId, description) => {
-    await updateTool(toolId, { description, regenerate: true });
-  };
+  // Handle tool update from polling (fallback when WebSocket doesn't work)
+  const handleToolUpdate = useCallback((updatedTool) => {
+    // Trigger a refetch to get the latest data
+    refetch();
+  }, [refetch]);
 
   // Calculate how many empty slots to show
   const emptySlots = Math.max(0, MAX_CONTAINERS - tools.length);
@@ -162,8 +163,8 @@ export default function CustomToolsPage() {
             onExecute={executeTool}
             onEdit={handleEdit}
             onDelete={(id) => setDeleteConfirm({ open: true, id })}
-            onRegenerate={handleRegenerate}
             onUpdateParameters={updateParameters}
+            onToolUpdate={handleToolUpdate}
           />
         ))}
 

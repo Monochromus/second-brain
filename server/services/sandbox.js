@@ -193,8 +193,8 @@ async function executeWithIsolatedVM(code, params) {
       console.log('[Sandbox]:', ...args);
     }));
 
-    // Create the execution script
-    const script = await isolate.compileScript(`
+    // Build the full script
+    const fullScript = `
       // Console polyfill
       const console = {
         log: (...args) => _log.apply(undefined, args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a))),
@@ -222,7 +222,25 @@ async function executeWithIsolatedVM(code, params) {
           return JSON.stringify({ type: 'error', content: 'Ausführungsfehler: ' + e.message });
         }
       })();
-    `);
+    `;
+
+    // Try to compile the script
+    let script;
+    try {
+      script = await isolate.compileScript(fullScript);
+    } catch (compileError) {
+      console.error('[Sandbox] Compilation error:', compileError.message);
+      console.error('[Sandbox] Generated code (first 500 chars):', code.substring(0, 500));
+
+      // Extract line number from error if possible
+      const lineMatch = compileError.message.match(/:(\d+):/);
+      const lineInfo = lineMatch ? ` (Zeile ${lineMatch[1]})` : '';
+
+      return {
+        type: 'error',
+        content: `Syntaxfehler im generierten Code${lineInfo}: ${compileError.message}. Bitte versuche es mit einer anderen Beschreibung.`
+      };
+    }
 
     // Run with timeout
     const resultStr = await script.run(context, { timeout: SANDBOX_CONFIG.timeout });

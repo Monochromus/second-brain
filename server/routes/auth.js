@@ -1,9 +1,11 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
+const { v4: uuidv4 } = require('uuid');
 const db = require('../config/database');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { validateEmail } = require('../utils/helpers');
 const { generateToken } = require('../middleware/auth');
+const { SAMPLE_TOOLS } = require('../data/sampleTools');
 
 const router = express.Router();
 
@@ -99,6 +101,25 @@ function createSampleDataForUser(userId) {
     'Webclips',
     2
   );
+
+  // Create sample Custom Tools (Weltuhr and Kanban Board)
+  SAMPLE_TOOLS.forEach((tool, index) => {
+    const toolId = uuidv4();
+    db.prepare(`
+      INSERT INTO custom_tools (id, user_id, name, description, generated_code, parameters_schema, current_parameters, refresh_interval, status, position)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?)
+    `).run(
+      toolId,
+      userId,
+      tool.name,
+      tool.description,
+      tool.generated_code,
+      JSON.stringify(tool.parameters_schema),
+      JSON.stringify(tool.parameters_schema),
+      tool.refresh_interval,
+      index
+    );
+  });
 }
 
 router.post('/register', asyncHandler(async (req, res) => {
