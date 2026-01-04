@@ -2,15 +2,31 @@ import { useState, useMemo, useEffect, useContext } from 'react';
 import { format, startOfMonth, endOfMonth, addMonths } from 'date-fns';
 import CalendarView from '../components/calendar/CalendarView';
 import EventModal from '../components/calendar/EventModal';
-import ConfirmDialog from '../components/shared/ConfirmDialog';
 import { useCalendar, useCalendarConnections, getCalendarRange } from '../hooks/useCalendar';
 import { AgentContext } from '../context/AgentContext';
+import { AuthContext } from '../context/AuthContext';
+import { getHolidaysInRange, HOLIDAYS_CALENDAR } from '../lib/germanHolidays';
 
 export default function CalendarPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [eventModal, setEventModal] = useState({ open: false, event: null });
-  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null });
+
+  const { user, updateSettings } = useContext(AuthContext);
+
+  // Load holidays settings from user settings (with defaults)
+  const holidaysSettings = user?.settings?.calendar?.holidays || {};
+  const [showHolidays, setShowHolidays] = useState(holidaysSettings.enabled ?? true);
+  const [holidaysColor, setHolidaysColor] = useState(holidaysSettings.color || '#EF4444');
+
+  // Sync state with user settings when they load
+  useEffect(() => {
+    if (user?.settings?.calendar?.holidays) {
+      const settings = user.settings.calendar.holidays;
+      if (settings.enabled !== undefined) setShowHolidays(settings.enabled);
+      if (settings.color) setHolidaysColor(settings.color);
+    }
+  }, [user?.settings?.calendar?.holidays]);
 
   const { registerRefreshListener } = useContext(AgentContext);
 
@@ -37,17 +53,70 @@ export default function CalendarPage() {
     updateConnection
   } = useCalendarConnections();
 
+  // Merge holidays with regular events (with custom color)
+  const holidays = useMemo(() => {
+    if (!showHolidays) return [];
+    return getHolidaysInRange(range.start_date, range.end_date).map(h => ({
+      ...h,
+      color: holidaysColor
+    }));
+  }, [range.start_date, range.end_date, showHolidays, holidaysColor]);
+
+  const allEvents = useMemo(() => {
+    return [...events, ...holidays];
+  }, [events, holidays]);
+
+  // Create combined calendars list with holidays
+  const allCalendars = useMemo(() => {
+    const holidaysCalendar = {
+      ...HOLIDAYS_CALENDAR,
+      is_active: showHolidays,
+      color: holidaysColor
+    };
+    return [holidaysCalendar, ...calendars];
+  }, [calendars, showHolidays, holidaysColor]);
+
   // Register listener for AI Agent calendar updates
   useEffect(() => {
     const unsubscribe = registerRefreshListener('calendar', refetch);
     return unsubscribe;
   }, [registerRefreshListener, refetch]);
 
+  // Helper to save holidays settings to user account
+  const saveHolidaysSettings = async (updates) => {
+    const currentSettings = user?.settings || {};
+    const currentCalendarSettings = currentSettings.calendar || {};
+    const currentHolidaysSettings = currentCalendarSettings.holidays || {};
+
+    const newSettings = {
+      ...currentSettings,
+      calendar: {
+        ...currentCalendarSettings,
+        holidays: {
+          ...currentHolidaysSettings,
+          ...updates
+        }
+      }
+    };
+
+    await updateSettings({ settings: newSettings }, { silent: true });
+  };
+
   const handleToggleCalendar = async (calendarId, isActive) => {
+    if (calendarId === 'holidays') {
+      setShowHolidays(isActive);
+      await saveHolidaysSettings({ enabled: isActive });
+      return;
+    }
     await updateConnection(calendarId, { is_active: isActive });
   };
 
   const handleUpdateCalendarColor = async (calendarId, color) => {
+    if (calendarId === 'holidays') {
+      setHolidaysColor(color);
+      await saveHolidaysSettings({ color });
+      return;
+    }
     await updateConnection(calendarId, { color });
   };
 
@@ -59,12 +128,6 @@ export default function CalendarPage() {
     }
   };
 
-  const handleConfirmDelete = async () => {
-    if (deleteConfirm.id) {
-      await deleteEvent(deleteConfirm.id);
-    }
-  };
-
   return (
     <div>
       <div className="mb-6">
@@ -73,14 +136,22 @@ export default function CalendarPage() {
       </div>
 
       <CalendarView
-        events={events}
-        onEditEvent={(event) => setEventModal({ open: true, event })}
-        onDeleteEvent={(id) => setDeleteConfirm({ open: true, id })}
+        events={allEvents}
+        onEditEvent={(event) => {
+          // Don't allow editing holidays
+          if (event.is_holiday) return;
+          setEventModal({ open: true, event });
+        }}
+        onDeleteEvent={(id) => {
+          // Don't allow deleting holidays
+          if (String(id).startsWith('holiday-')) return;
+          deleteEvent(id);
+        }}
         onAddEvent={() => setEventModal({ open: true, event: null })}
         onCreateEvent={createEvent}
         selectedDate={selectedDate}
         onDateSelect={setSelectedDate}
-        calendars={calendars}
+        calendars={allCalendars}
         onToggleCalendar={handleToggleCalendar}
         onUpdateCalendarColor={handleUpdateCalendarColor}
       />
@@ -90,15 +161,6 @@ export default function CalendarPage() {
         onClose={() => setEventModal({ open: false, event: null })}
         event={eventModal.event}
         onSave={handleSaveEvent}
-      />
-
-      <ConfirmDialog
-        isOpen={deleteConfirm.open}
-        onClose={() => setDeleteConfirm({ open: false, id: null })}
-        onConfirm={handleConfirmDelete}
-        title="Termin löschen"
-        message="Möchtest du diesen Termin wirklich löschen?"
-        confirmText="Löschen"
       />
     </div>
   );

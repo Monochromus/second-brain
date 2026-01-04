@@ -8,7 +8,8 @@ export default function EventItem({ event, onEdit, onDelete, compact = false }) 
   const sourceColors = {
     outlook: 'bg-blue-500',
     icloud: 'bg-green-500',
-    local: 'bg-accent'
+    local: 'bg-accent',
+    holidays: 'bg-red-500'
   };
 
   if (compact) {

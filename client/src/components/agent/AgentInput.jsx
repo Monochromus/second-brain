@@ -180,6 +180,10 @@ export default function AgentInput({
   // Check if user is using standard (free) models
   const isStandardModel = !user?.settings?.openaiApiKey && !user?.settings?.perplexityApiKey;
 
+  // Check if user is using a reasoning model (slower response times)
+  const selectedModel = user?.settings?.openaiModel || 'gpt-4o-mini';
+  const isReasoningModel = selectedModel.startsWith('o1') || selectedModel.startsWith('o3') || selectedModel.startsWith('gpt-5');
+
   useEffect(() => {
     if (!isProcessing && inputRef.current) {
       inputRef.current.focus();
@@ -270,9 +274,16 @@ export default function AgentInput({
 
       <form onSubmit={handleSubmit}>
         <div className="relative">
-          <div className="absolute left-4 top-1/2 -translate-y-1/2">
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
             {isProcessing ? (
-              <Loader2 className="w-5 h-5 text-accent animate-spin" />
+              <>
+                <Loader2 className="w-5 h-5 text-accent animate-spin" />
+                {isReasoningModel && (
+                  <span className="text-xs text-text-secondary whitespace-nowrap">
+                    Reasoning-Modell denkt nach...
+                  </span>
+                )}
+              </>
             ) : (
               <Sparkles className="w-5 h-5 text-accent" />
             )}

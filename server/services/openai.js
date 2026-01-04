@@ -42,10 +42,10 @@ function createOpenAIClient(userId) {
 }
 
 const SYSTEM_PROMPT = `Du bist der AI-Assistent im "Pocket Assistent" Produktivitätstool.
-Du hilfst dem Nutzer, Aufgaben zu organisieren, Termine zu planen und Notizen zu verwalten.
+Du hilfst dem Nutzer, Aufgaben zu organisieren, Termine zu verwalten, Notizen zu erstellen und Recherchen zu betreiben.
 
 PARA-SYSTEM (Tiago Forte):
-Das PARA-System ist die Grundstruktur dieser App. Halte dich STRIKT an diese Regeln:
+Das PARA-System ist die Grundstruktur dieses Produktivitätstools. Halte dich STRIKT an diese Regeln:
 
 1. AREAS (Verantwortungsbereiche):
    - Langfristige Verantwortungen OHNE Deadline (z.B. "Gesundheit", "Karriere", "Familie")
@@ -66,7 +66,7 @@ Das PARA-System ist die Grundstruktur dieser App. Halte dich STRIKT an diese Reg
    - Ressourcen können Notizen enthalten
 
 4. TODOS (Aufgaben):
-   - Todos gehören IMMER zu einem Projekt (nie direkt zu einer Area)
+   - Todos gehören IMMER zu einem Projekt
    - Bei Todo-Erstellung: IMMER project_id angeben wenn möglich
 
 5. NOTES (Notizen):
@@ -78,7 +78,7 @@ Deine Fähigkeiten:
 - Notizen erstellen (mit project_id ODER area_id ODER resource_id), bearbeiten und durchsuchen
 - Projekte erstellen (immer mit area_id) und verwalten
 - Ressourcen erstellen und mit Projekten verknüpfen
-- Kalendertermine abrufen und neue erstellen
+- Kalendertermine abrufen, erstellen, bearbeiten und löschen
 - Areas verwalten
 - Custom Tools erstellen, anpassen und löschen (interaktive Mini-Apps wie Timer, Uhren, Rechner, Kanban-Boards)
 - E-Mails durchsuchen, lesen und zusammenfassen
@@ -86,26 +86,50 @@ Deine Fähigkeiten:
 
 CUSTOM TOOLS REGELN:
 - Wenn der Nutzer ein Custom Tool wünscht (z.B. "Erstelle mir einen Timer", "Ich brauche eine Weltuhr"):
-  1. Formuliere eine DETAILLIERTE Beschreibung basierend auf den Wünschen des Nutzers
-  2. Füge nützliche Details hinzu (Farben, Interaktivität, Anzeigen)
-  3. Nutze create_custom_tool mit dieser Beschreibung
+  1. Formuliere eine detaillierte Beschreibung basierend auf den Wünschen des Nutzers
+  2. Nutze create_custom_tool mit dieser Beschreibung
 - Maximal 3 Custom Tools sind erlaubt
 - Beispiel: Nutzer sagt "Ich brauche einen Pomodoro Timer" → Du erstellst: "Ein Pomodoro-Timer mit 25 Minuten Arbeitszeit und 5 Minuten Pause, Start/Stop/Reset-Buttons, visuelle Fortschrittsanzeige und akustischem Signal bei Ablauf"
 
-E-MAIL-REGELN (SEHR WICHTIG):
+E-MAIL-REGELN:
 - Du kannst E-Mails durchsuchen (search_emails), lesen (get_email_content) und Threads anzeigen (get_email_thread)
 - Du kannst E-Mail-Entwürfe erstellen mit draft_email_reply oder draft_new_email
-- KRITISCH: E-Mails werden NIE automatisch gesendet! NIEMALS!
+- E-Mails werden nie automatisch gesendet
 - Entwürfe werden dem Nutzer zur Überprüfung und manuellen Bestätigung angezeigt
 - Der Nutzer entscheidet ob er senden, bearbeiten oder verwerfen möchte
 - Sensible E-Mail-Inhalte (Passwörter, Finanzdaten) werden gefiltert und nicht im Kontext gespeichert
+
+KALENDER-REGELN (DAUER SCHÄTZEN):
+- Wenn der Nutzer KEINE Endzeit oder Dauer angibt, schätze eine sinnvolle Dauer basierend auf dem Termintyp:
+  * Schule, Unterricht: 6-8 Stunden (z.B. 8-14 Uhr oder 8-16 Uhr)
+  * Uni, Vorlesung, Studium: 2-4 Stunden
+  * Arbeit, Büro, Schicht: 8 Stunden
+  * Arzttermin, Zahnarzt: 1 Stunde
+  * Meeting, Besprechung, Call: 1 Stunde
+  * Mittagessen, Lunch: 1 Stunde
+  * Abendessen, Dinner: 2 Stunden
+  * Kaffee, Coffee: 30 Minuten
+  * Telefonat, Anruf: 30 Minuten
+  * Training, Sport, Gym: 1.5 Stunden
+  * Friseur: 1 Stunde
+  * Konzert, Theater, Kino: 2-3 Stunden
+  * Party, Feier: 4 Stunden
+  * Flug: basierend auf Strecke
+  * Workshop, Seminar: 3 Stunden
+  * Unbekannt/Standard: 1 Stunde
+- WICHTIG: Denke logisch! "Schule ab 8" = ca. 6h, "Arbeit ab 9" = ca. 8h
+- Gib immer BEIDE Zeiten an (start_time und end_time)
 
 WICHTIGE ANTWORT-REGELN:
 - Antworte IMMER sehr kurz und prägnant (1-2 Sätze maximal)
 - KEINE Links oder URLs in deinen Antworten - die werden separat angezeigt
 - KEINE Listen, Aufzählungen oder formatierte Texte
-- Bestätige Aktionen mit einem einfachen kurzen Satz
 - Nach web_research: Antworte NUR mit einem SEHR kurzen Satz (max 10 Wörter)
+
+KRITISCH - TOOL-NUTZUNG:
+- NIEMALS behaupten etwas getan zu haben ohne das entsprechende Tool aufzurufen!
+- Wenn du "erstellt", "hinzugefügt", "geändert" sagst, MUSS ein Tool-Aufruf erfolgt sein
+- Bei Aktionsanfragen: IMMER zuerst Tool aufrufen, DANN bestätigen
 
 Weitere Regeln:
 1. Führe Aktionen direkt aus, frage nur bei echten Unklarheiten nach
@@ -344,18 +368,52 @@ const tools = [
     type: "function",
     function: {
       name: "create_calendar_event",
-      description: "Erstellt einen neuen Kalendereintrag",
+      description: "Erstellt einen neuen Kalendereintrag. WICHTIG: Wenn der Nutzer keine Endzeit angibt, schätze eine sinnvolle Dauer basierend auf dem Termintyp (z.B. Meeting=1h, Arzt=1h, Abendessen=2h, Kaffee=30min).",
       parameters: {
         type: "object",
         properties: {
           title: { type: "string", description: "Titel des Termins" },
           start_time: { type: "string", description: "Startzeit (ISO 8601 Format)" },
-          end_time: { type: "string", description: "Endzeit (ISO 8601 Format)" },
+          end_time: { type: "string", description: "Endzeit (ISO 8601 Format). IMMER angeben - bei fehlender Nutzerangabe selbst schätzen!" },
           description: { type: "string" },
           location: { type: "string", description: "Ort des Termins" },
           is_all_day: { type: "boolean", description: "Ganztägiger Termin" }
         },
         required: ["title", "start_time", "end_time"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_calendar_event",
+      description: "Aktualisiert einen bestehenden Kalendereintrag. Nutze get_calendar_events um die ID zu finden.",
+      parameters: {
+        type: "object",
+        properties: {
+          id: { type: "integer", description: "ID des Termins" },
+          title: { type: "string", description: "Neuer Titel" },
+          start_time: { type: "string", description: "Neue Startzeit (ISO 8601 Format)" },
+          end_time: { type: "string", description: "Neue Endzeit (ISO 8601 Format)" },
+          description: { type: "string", description: "Neue Beschreibung" },
+          location: { type: "string", description: "Neuer Ort" },
+          is_all_day: { type: "boolean", description: "Ganztägiger Termin" }
+        },
+        required: ["id"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_calendar_event",
+      description: "Löscht einen Kalendereintrag",
+      parameters: {
+        type: "object",
+        properties: {
+          id: { type: "integer", description: "ID des Termins" }
+        },
+        required: ["id"]
       }
     }
   },
@@ -981,6 +1039,43 @@ async function executeToolCall(toolName, args, userId) {
         );
         const event = db.prepare('SELECT * FROM calendar_events WHERE id = ?').get(result.lastInsertRowid);
         return { success: true, event, message: `Termin "${args.title}" erstellt.` };
+      }
+
+      case 'update_calendar_event': {
+        const existingEvent = db.prepare('SELECT * FROM calendar_events WHERE id = ? AND user_id = ?').get(args.id, userId);
+        if (!existingEvent) {
+          return { success: false, error: 'Termin nicht gefunden.' };
+        }
+
+        const updates = [];
+        const params = [];
+
+        if (args.title !== undefined) { updates.push('title = ?'); params.push(args.title); }
+        if (args.start_time !== undefined) { updates.push('start_time = ?'); params.push(args.start_time); }
+        if (args.end_time !== undefined) { updates.push('end_time = ?'); params.push(args.end_time); }
+        if (args.description !== undefined) { updates.push('description = ?'); params.push(args.description); }
+        if (args.location !== undefined) { updates.push('location = ?'); params.push(args.location); }
+        if (args.is_all_day !== undefined) { updates.push('is_all_day = ?'); params.push(args.is_all_day ? 1 : 0); }
+
+        if (updates.length === 0) {
+          return { success: false, error: 'Keine Änderungen angegeben.' };
+        }
+
+        params.push(args.id, userId);
+        db.prepare(`UPDATE calendar_events SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`).run(...params);
+
+        const updatedEvent = db.prepare('SELECT * FROM calendar_events WHERE id = ?').get(args.id);
+        return { success: true, event: updatedEvent, message: `Termin "${updatedEvent.title}" aktualisiert.` };
+      }
+
+      case 'delete_calendar_event': {
+        const eventToDelete = db.prepare('SELECT * FROM calendar_events WHERE id = ? AND user_id = ?').get(args.id, userId);
+        if (!eventToDelete) {
+          return { success: false, error: 'Termin nicht gefunden.' };
+        }
+
+        db.prepare('DELETE FROM calendar_events WHERE id = ? AND user_id = ?').run(args.id, userId);
+        return { success: true, message: `Termin "${eventToDelete.title}" gelöscht.` };
       }
 
       case 'link_items': {
@@ -1766,8 +1861,23 @@ async function processAgentRequest(message, userId, chatHistory = []) {
       messages.push(assistantMessage);
 
       if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
+        const content = assistantMessage.content || '';
+
+        // Detect if model claims to have done something without actually calling a tool
+        const actionClaimPatterns = /\b(erstellt|hinzugefügt|angelegt|geändert|aktualisiert|gelöscht|entfernt|gespeichert|eingetragen|geplant|verschoben)\b/i;
+        const claimsAction = actionClaimPatterns.test(content);
+
+        // If no actions were executed but model claims to have done something, warn user
+        if (claimsAction && actions.length === 0) {
+          return {
+            response: 'Der Agent war nicht intelligent genug, um die Aktion auszuführen. Wähle ein besseres Modell in den Einstellungen oder drücke dich präziser aus.',
+            actions,
+            _warning: 'Model claimed action without tool call'
+          };
+        }
+
         return {
-          response: assistantMessage.content || 'Aktion ausgeführt.',
+          response: content || 'Wie kann ich dir helfen?',
           actions
         };
       }

@@ -65,10 +65,13 @@ export default function EventPopover({ event, anchor, onClose, onEdit, onDelete 
     };
   }, [onClose]);
 
-  const getSourceColor = (source) => {
+  const getSourceColor = (source, eventColor) => {
+    // Use event's custom color if available
+    if (eventColor) return eventColor;
     switch (source) {
       case 'outlook': return '#3B82F6';
       case 'icloud': return '#10B981';
+      case 'holidays': return '#EF4444';
       default: return '#14B8A6';
     }
   };
@@ -76,7 +79,8 @@ export default function EventPopover({ event, anchor, onClose, onEdit, onDelete 
   const sourceLabels = {
     outlook: 'Outlook',
     icloud: 'iCloud',
-    local: 'Lokal'
+    local: 'Lokal',
+    holidays: 'Feiertag'
   };
 
   const startDate = parseISO(event.start_time);
@@ -98,7 +102,7 @@ export default function EventPopover({ event, anchor, onClose, onEdit, onDelete 
           <div className="flex items-start gap-3 flex-1 min-w-0">
             <div
               className="w-3 h-3 rounded-full mt-1.5 flex-shrink-0"
-              style={{ backgroundColor: getSourceColor(event.calendar_source) }}
+              style={{ backgroundColor: getSourceColor(event.calendar_source, event.color) }}
             />
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-text-primary text-lg leading-tight">
@@ -153,22 +157,24 @@ export default function EventPopover({ event, anchor, onClose, onEdit, onDelete 
           )}
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-2 p-4 pt-2 border-t border-border">
-          <button
-            onClick={() => onEdit(event)}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-surface-secondary hover:bg-border text-text-primary text-sm font-medium transition-colors"
-          >
-            <Edit className="w-4 h-4" />
-            Bearbeiten
-          </button>
-          <button
-            onClick={() => onDelete(event.id)}
-            className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-error/10 hover:bg-error/20 text-error text-sm font-medium transition-colors"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
+        {/* Actions - not shown for holidays */}
+        {!event.is_holiday && (
+          <div className="flex items-center gap-2 p-4 pt-2 border-t border-border">
+            <button
+              onClick={() => onEdit(event)}
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-surface-secondary hover:bg-border text-text-primary text-sm font-medium transition-colors"
+            >
+              <Edit className="w-4 h-4" />
+              Bearbeiten
+            </button>
+            <button
+              onClick={() => onDelete(event.id)}
+              className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-error/10 hover:bg-error/20 text-error text-sm font-medium transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
     </>
   );

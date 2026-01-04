@@ -99,7 +99,8 @@ export default function CalendarView({
   const sourceColors = useMemo(() => ({
     local: { hex: getCalendarColor('local') },
     outlook: { hex: getCalendarColor('outlook') },
-    icloud: { hex: getCalendarColor('icloud') }
+    icloud: { hex: getCalendarColor('icloud') },
+    holidays: { hex: getCalendarColor('holidays') || '#EF4444' }
   }), [calendars]);
 
   const handlePrev = () => {
