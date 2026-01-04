@@ -368,14 +368,22 @@ async function loadEmailBody(emailId) {
   // Load from IMAP
   let connection;
   try {
-    connection = await imapService.createConnection({
-      email: email.account_email,  // Use the aliased column
+    // Create IMAP connection with timeout
+    const connectionPromise = imapService.createConnection({
+      email: email.account_email,
       encrypted_password: email.encrypted_password,
       encryption_iv: email.encryption_iv,
       encryption_auth_tag: email.encryption_auth_tag,
       imap_host: email.imap_host,
       imap_port: email.imap_port
     });
+
+    // 15 second timeout for connection
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('IMAP connection timeout')), 15000);
+    });
+
+    connection = await Promise.race([connectionPromise, timeoutPromise]);
 
     const body = await imapService.fetchEmailBody(connection, email.folder, email.uid);
 
@@ -410,7 +418,7 @@ async function loadEmailBody(emailId) {
     }
 
     return {
-      id: email.email_id,  // Use the aliased column
+      id: email.email_id,
       subject: email.subject,
       from_address: email.from_address,
       from_name: email.from_name,
@@ -428,9 +436,31 @@ async function loadEmailBody(emailId) {
       }))
     };
 
+  } catch (imapError) {
+    console.error('IMAP error loading email body:', imapError.message);
+
+    // Fallback: Return email with snippet as body_text
+    return {
+      id: email.email_id,
+      subject: email.subject,
+      from_address: email.from_address,
+      from_name: email.from_name,
+      to_addresses: email.to_addresses,
+      cc_addresses: email.cc_addresses,
+      date: email.date,
+      body_html: null,
+      body_text: email.snippet || 'E-Mail-Inhalt konnte nicht geladen werden. Bitte synchronisieren Sie das Konto erneut.',
+      is_read: email.is_read,
+      is_starred: email.is_starred,
+      _loadError: true // Flag to indicate body could not be loaded from IMAP
+    };
   } finally {
     if (connection) {
-      imapService.closeConnection(connection);
+      try {
+        imapService.closeConnection(connection);
+      } catch (closeErr) {
+        console.error('Error closing IMAP connection:', closeErr.message);
+      }
     }
   }
 }

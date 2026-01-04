@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Mail,
@@ -11,6 +11,7 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   MoreVertical,
   Reply,
   ReplyAll,
@@ -20,7 +21,11 @@ import {
   Plus,
   Check,
   X,
-  ArrowLeft
+  ArrowLeft,
+  MailOpen,
+  FolderInput,
+  CheckSquare,
+  SlidersHorizontal
 } from 'lucide-react';
 import { useEmails, useEmailDrafts, useEmailStats } from '../hooks/useEmails';
 import { useEmailAccounts } from '../hooks/useEmailAccounts';
@@ -37,6 +42,19 @@ const FOLDERS = [
   { id: 'Trash', label: 'Papierkorb', icon: Trash2 }
 ];
 
+// Account colors (same as calendar)
+const ACCOUNT_COLORS = [
+  { name: 'Petrol', value: '#14B8A6' },
+  { name: 'Blau', value: '#3B82F6' },
+  { name: 'Lila', value: '#8B5CF6' },
+  { name: 'Pink', value: '#EC4899' },
+  { name: 'Rot', value: '#EF4444' },
+  { name: 'Orange', value: '#F97316' },
+  { name: 'Gelb', value: '#EAB308' },
+  { name: 'Grün', value: '#22C55E' },
+  { name: 'Grau', value: '#6B7280' },
+];
+
 export default function EmailPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedFolder, setSelectedFolder] = useState('INBOX');
@@ -48,8 +66,27 @@ export default function EmailPage() {
   const [replyToEmail, setReplyToEmail] = useState(null);
   const [editDraft, setEditDraft] = useState(null);
   const [showMobileDetail, setShowMobileDetail] = useState(false);
+  const [colorPickerFor, setColorPickerFor] = useState(null);
+  const [foldersExpanded, setFoldersExpanded] = useState(true);
+  const [accountsExpanded, setAccountsExpanded] = useState(true);
 
-  const { accounts, loading: accountsLoading, syncAccount } = useEmailAccounts();
+  // Hover preview state
+  const [hoveredEmailId, setHoveredEmailId] = useState(null);
+  const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
+  const hoverTimeoutRef = useRef(null);
+
+  // Batch selection state
+  const [selectedEmailIds, setSelectedEmailIds] = useState(new Set());
+  const [showMoveMenu, setShowMoveMenu] = useState(false);
+
+  // Search filter state
+  const [showSearchFilters, setShowSearchFilters] = useState(false);
+  const [searchFilters, setSearchFilters] = useState({
+    from: '',
+    hasAttachment: false
+  });
+
+  const { accounts, loading: accountsLoading, syncAccount, updateAccount } = useEmailAccounts();
 
   const {
     emails,
@@ -65,7 +102,8 @@ export default function EmailPage() {
     markAsRead,
     toggleStar,
     moveToFolder,
-    deleteEmail
+    deleteEmail,
+    bulkAction
   } = useEmails({
     account_id: selectedAccountId,
     folder: showStarredOnly ? undefined : selectedFolder,
@@ -187,8 +225,48 @@ export default function EmailPage() {
     return account?.color || '#3B82F6';
   };
 
+  // Batch selection handlers
+  const toggleEmailSelection = (id) => {
+    setSelectedEmailIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedEmailIds.size === emails.length) {
+      setSelectedEmailIds(new Set());
+    } else {
+      setSelectedEmailIds(new Set(emails.map(e => e.id)));
+    }
+  };
+
+  const handleBulkAction = async (action, value) => {
+    await bulkAction([...selectedEmailIds], action, value);
+    setSelectedEmailIds(new Set());
+    setShowMoveMenu(false);
+    refetchStats();
+  };
+
+  const clearSelection = () => {
+    setSelectedEmailIds(new Set());
+    setShowMoveMenu(false);
+  };
+
+  // Search filter helpers
+  const hasActiveFilters = searchFilters.from || searchFilters.hasAttachment;
+  const clearFilter = (key) => {
+    setSearchFilters(prev => ({ ...prev, [key]: key === 'hasAttachment' ? false : '' }));
+  };
+  const clearAllFilters = () => {
+    setSearchFilters({ from: '', hasAttachment: false });
+    setSearchQuery('');
+  };
+
   return (
-    <div className="h-[calc(100vh-4rem)] flex overflow-hidden -m-4 md:-m-6">
+    <div className="h-[calc(100vh-14rem)] flex overflow-hidden rounded-xl border border-border shadow-sm bg-surface">
       {/* Sidebar - Desktop only */}
       <div className="hidden md:flex w-56 border-r border-border bg-surface-secondary flex-shrink-0 flex-col">
         {/* New Email Button */}
@@ -205,110 +283,201 @@ export default function EmailPage() {
         {/* Folders */}
         <div className="flex-1 overflow-y-auto">
           <div className="px-3 py-2">
-            <p className="text-xs font-medium text-text-secondary uppercase tracking-wide mb-2">
-              Ordner
-            </p>
-            <div className="space-y-1">
-              {FOLDERS.map((folder) => {
-                const Icon = folder.icon;
-                const isActive = selectedFolder === folder.id && !showStarredOnly;
-                const count = folder.id === 'INBOX' ? stats.unread : 0;
+            <button
+              onClick={() => setFoldersExpanded(!foldersExpanded)}
+              className="flex items-center justify-between w-full text-xs font-medium text-text-secondary uppercase tracking-wide mb-2 hover:text-text-primary transition-colors"
+            >
+              <span>Ordner</span>
+              <ChevronDown className={cn("w-4 h-4 transition-transform", !foldersExpanded && "-rotate-90")} />
+            </button>
+            {foldersExpanded && (
+              <div className="space-y-1">
+                {FOLDERS.map((folder) => {
+                  const Icon = folder.icon;
+                  const isActive = selectedFolder === folder.id && !showStarredOnly;
+                  const count = folder.id === 'INBOX' ? stats.unread : 0;
 
-                return (
-                  <button
-                    key={folder.id}
-                    onClick={() => {
-                      setSelectedFolder(folder.id);
-                      setShowStarredOnly(false);
-                      setSelectedEmail(null);
-                    }}
-                    className={cn(
-                      "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors",
-                      isActive
-                        ? "bg-accent text-white"
-                        : "text-text-secondary hover:bg-surface-primary hover:text-text-primary"
-                    )}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span className="flex-1 text-left">{folder.label}</span>
-                    {count > 0 && (
-                      <span className={cn(
-                        "px-1.5 py-0.5 text-xs rounded-full",
-                        isActive ? "bg-white/20" : "bg-accent/10 text-accent"
-                      )}>
-                        {count}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+                  return (
+                    <button
+                      key={folder.id}
+                      onClick={() => {
+                        setSelectedFolder(folder.id);
+                        setShowStarredOnly(false);
+                        setSelectedEmail(null);
+                      }}
+                      className={cn(
+                        "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors",
+                        isActive
+                          ? "bg-accent text-white"
+                          : "text-text-secondary hover:bg-surface-primary hover:text-text-primary"
+                      )}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span className="flex-1 text-left">{folder.label}</span>
+                      {count > 0 && (
+                        <span className={cn(
+                          "px-1.5 py-0.5 text-xs rounded-full",
+                          isActive ? "bg-white/20" : "bg-accent/10 text-accent"
+                        )}>
+                          {count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
 
-              {/* Starred */}
-              <button
-                onClick={() => {
-                  setShowStarredOnly(true);
-                  setSelectedFolder('INBOX'); // Reset folder so emails view is shown
-                  setSelectedEmail(null);
-                }}
-                className={cn(
-                  "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors",
-                  showStarredOnly
-                    ? "bg-accent text-white"
-                    : "text-text-secondary hover:bg-surface-primary hover:text-text-primary"
-                )}
-              >
-                <Star className="w-4 h-4" />
-                <span className="flex-1 text-left">Markiert</span>
-                {stats.starred > 0 && (
-                  <span className={cn(
-                    "px-1.5 py-0.5 text-xs rounded-full",
-                    showStarredOnly ? "bg-white/20" : "bg-accent/10 text-accent"
-                  )}>
-                    {stats.starred}
-                  </span>
-                )}
-              </button>
-            </div>
+                {/* Starred */}
+                <button
+                  onClick={() => {
+                    setShowStarredOnly(true);
+                    setSelectedFolder('INBOX'); // Reset folder so emails view is shown
+                    setSelectedEmail(null);
+                  }}
+                  className={cn(
+                    "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors",
+                    showStarredOnly
+                      ? "bg-accent text-white"
+                      : "text-text-secondary hover:bg-surface-primary hover:text-text-primary"
+                  )}
+                >
+                  <Star className="w-4 h-4" />
+                  <span className="flex-1 text-left">Markiert</span>
+                  {stats.starred > 0 && (
+                    <span className={cn(
+                      "px-1.5 py-0.5 text-xs rounded-full",
+                      showStarredOnly ? "bg-white/20" : "bg-accent/10 text-accent"
+                    )}>
+                      {stats.starred}
+                    </span>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Accounts */}
           {accounts.length > 0 && (
             <div className="px-3 py-2 mt-2 border-t border-border">
-              <p className="text-xs font-medium text-text-secondary uppercase tracking-wide mb-2">
-                Konten
-              </p>
-              <div className="space-y-1">
-                <button
-                  onClick={() => setSelectedAccountId(null)}
-                  className={cn(
-                    "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors",
-                    selectedAccountId === null
-                      ? "bg-surface-primary text-text-primary"
-                      : "text-text-secondary hover:bg-surface-primary hover:text-text-primary"
-                  )}
-                >
-                  <Mail className="w-4 h-4" />
-                  <span>Alle Konten</span>
-                </button>
-                {accounts.map((account) => (
+              <button
+                onClick={() => setAccountsExpanded(!accountsExpanded)}
+                className="flex items-center justify-between w-full text-xs font-medium text-text-secondary uppercase tracking-wide mb-2 hover:text-text-primary transition-colors"
+              >
+                <span>Konten</span>
+                <ChevronDown className={cn("w-4 h-4 transition-transform", !accountsExpanded && "-rotate-90")} />
+              </button>
+              {accountsExpanded && (
+                <div className="space-y-1">
                   <button
-                    key={account.id}
-                    onClick={() => setSelectedAccountId(account.id)}
+                    onClick={() => setSelectedAccountId(null)}
                     className={cn(
                       "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors",
-                      selectedAccountId === account.id
+                      selectedAccountId === null
                         ? "bg-surface-primary text-text-primary"
                         : "text-text-secondary hover:bg-surface-primary hover:text-text-primary"
                     )}
                   >
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: account.color }}
-                    />
-                    <span className="truncate">{account.display_name || account.email}</span>
+                    <Mail className="w-4 h-4" />
+                    <span>Alle Konten</span>
                   </button>
-                ))}
-              </div>
+                  {accounts.map((account) => (
+                    <div key={account.id} className="relative">
+                      <div
+                        className={cn(
+                          "flex items-center gap-2 px-2 py-2 rounded-lg text-sm transition-colors",
+                          selectedAccountId === account.id
+                            ? "bg-surface-primary"
+                            : "hover:bg-surface-primary"
+                        )}
+                      >
+                        {/* Checkbox */}
+                        <button
+                          onClick={async () => {
+                            const newActiveState = account.is_active ? 0 : 1;
+                            await updateAccount(account.id, { isActive: newActiveState });
+                            // If deactivating the currently selected account, reset selection
+                            if (!newActiveState && selectedAccountId === account.id) {
+                              setSelectedAccountId(null);
+                            }
+                            // Refresh emails and stats
+                            refetch();
+                            refetchStats();
+                          }}
+                          className={cn(
+                            'w-5 h-5 rounded flex items-center justify-center border-2 transition-all flex-shrink-0',
+                            account.is_active
+                              ? 'border-transparent'
+                              : 'border-border bg-transparent'
+                          )}
+                          style={{
+                            backgroundColor: account.is_active ? account.color : undefined
+                          }}
+                          title={account.is_active ? 'Konto ausblenden' : 'Konto einblenden'}
+                        >
+                          {account.is_active ? (
+                            <Check className="w-3 h-3 text-white" />
+                          ) : null}
+                        </button>
+
+                        {/* Account name (clickable for filter) */}
+                        <button
+                          onClick={() => setSelectedAccountId(account.id)}
+                          className={cn(
+                            "flex-1 text-left truncate transition-colors",
+                            selectedAccountId === account.id
+                              ? "text-text-primary"
+                              : "text-text-secondary hover:text-text-primary"
+                          )}
+                        >
+                          {account.display_name || account.email}
+                        </button>
+
+                        {/* Color picker button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setColorPickerFor(colorPickerFor === account.id ? null : account.id);
+                          }}
+                          className="p-1 rounded-lg hover:bg-border transition-colors flex-shrink-0"
+                          title="Farbe ändern"
+                        >
+                          <div
+                            className="w-4 h-4 rounded-full border border-border"
+                            style={{ backgroundColor: account.color }}
+                          />
+                        </button>
+                      </div>
+
+                      {/* Color picker grid */}
+                      {colorPickerFor === account.id && (
+                        <div className="px-2 pb-2 pt-1 bg-surface-secondary/50 rounded-b-lg">
+                          <div className="grid grid-cols-5 gap-1.5">
+                            {ACCOUNT_COLORS.map((color) => (
+                              <button
+                                key={color.value}
+                                onClick={() => {
+                                  updateAccount(account.id, { color: color.value });
+                                  setColorPickerFor(null);
+                                }}
+                                className={cn(
+                                  'w-6 h-6 rounded-full transition-all duration-200 hover:scale-110',
+                                  'flex items-center justify-center',
+                                  account.color === color.value && 'ring-2 ring-offset-1 ring-offset-surface ring-text-primary'
+                                )}
+                                style={{ backgroundColor: color.value }}
+                                title={color.name}
+                              >
+                                {account.color === color.value && (
+                                  <Check className="w-3 h-3 text-white" />
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -316,7 +485,7 @@ export default function EmailPage() {
 
       {/* Email List - Desktop only */}
       <div className="hidden md:flex w-80 border-r border-border flex-shrink-0 flex-col bg-surface-primary">
-        {/* List Header */}
+        {/* List Header with Search */}
         <div className="p-3 border-b border-border">
           <div className="flex items-center gap-2 mb-2">
             <div className="relative flex-1">
@@ -326,9 +495,27 @@ export default function EmailPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="E-Mails durchsuchen..."
-                className="input pl-9 py-1.5 text-sm"
+                className={cn("input pl-9 py-1.5 text-sm", searchQuery && "pr-8")}
               />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-secondary hover:text-text-primary"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
             </div>
+            <button
+              onClick={() => setShowSearchFilters(!showSearchFilters)}
+              className={cn(
+                "p-2 rounded-lg transition-colors",
+                showSearchFilters ? "bg-accent/10 text-accent" : "text-text-secondary hover:text-text-primary hover:bg-surface-secondary"
+              )}
+              title="Filter"
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+            </button>
             <button
               onClick={handleSync}
               className="p-2 text-text-secondary hover:text-text-primary hover:bg-surface-secondary rounded-lg transition-colors"
@@ -337,6 +524,56 @@ export default function EmailPage() {
               <RefreshCw className="w-4 h-4" />
             </button>
           </div>
+
+          {/* Active Filter Chips */}
+          {hasActiveFilters && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {searchFilters.from && (
+                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-accent/10 text-accent">
+                  Von: {searchFilters.from}
+                  <button onClick={() => clearFilter('from')} className="hover:text-accent/70">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {searchFilters.hasAttachment && (
+                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-accent/10 text-accent">
+                  Mit Anhang
+                  <button onClick={() => clearFilter('hasAttachment')} className="hover:text-accent/70">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              <button onClick={clearAllFilters} className="text-xs text-accent hover:underline">
+                Alle löschen
+              </button>
+            </div>
+          )}
+
+          {/* Expanded Filter Panel */}
+          {showSearchFilters && (
+            <div className="mb-2 p-2 bg-surface-secondary rounded-lg space-y-2">
+              <div>
+                <label className="text-xs text-text-secondary block mb-1">Von</label>
+                <input
+                  value={searchFilters.from}
+                  onChange={(e) => setSearchFilters(f => ({...f, from: e.target.value}))}
+                  placeholder="absender@..."
+                  className="input text-sm py-1"
+                />
+              </div>
+              <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={searchFilters.hasAttachment}
+                  onChange={(e) => setSearchFilters(f => ({...f, hasAttachment: e.target.checked}))}
+                  className="rounded"
+                />
+                Mit Anhang
+              </label>
+            </div>
+          )}
+
           <div className="flex items-center justify-between text-xs text-text-secondary">
             <span>
               {selectedFolder === 'Drafts'
@@ -346,6 +583,77 @@ export default function EmailPage() {
             {showStarredOnly && <span className="text-accent">Nur markierte</span>}
           </div>
         </div>
+
+        {/* Batch Action Bar */}
+        {selectedEmailIds.size > 0 && (
+          <div className="sticky top-0 z-10 bg-accent/10 border-b border-accent/20 p-2 flex items-center gap-1 flex-wrap">
+            <button
+              onClick={toggleSelectAll}
+              className="p-1.5 rounded hover:bg-accent/20 transition-colors"
+              title={selectedEmailIds.size === emails.length ? 'Keine auswählen' : 'Alle auswählen'}
+            >
+              <CheckSquare className="w-4 h-4 text-accent" />
+            </button>
+            <span className="text-xs text-accent font-medium">
+              {selectedEmailIds.size} ausgewählt
+            </span>
+            <div className="flex-1" />
+            <button
+              onClick={() => handleBulkAction('mark_read')}
+              className="p-1.5 rounded hover:bg-accent/20 transition-colors"
+              title="Als gelesen markieren"
+            >
+              <MailOpen className="w-4 h-4 text-text-secondary" />
+            </button>
+            <button
+              onClick={() => handleBulkAction('star')}
+              className="p-1.5 rounded hover:bg-accent/20 transition-colors"
+              title="Mit Stern markieren"
+            >
+              <Star className="w-4 h-4 text-text-secondary" />
+            </button>
+            <div className="relative">
+              <button
+                onClick={() => setShowMoveMenu(!showMoveMenu)}
+                className="p-1.5 rounded hover:bg-accent/20 transition-colors"
+                title="Verschieben"
+              >
+                <FolderInput className="w-4 h-4 text-text-secondary" />
+              </button>
+              {showMoveMenu && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowMoveMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1 w-36 bg-surface border border-border rounded-lg shadow-lg py-1 z-20">
+                    {FOLDERS.map(folder => (
+                      <button
+                        key={folder.id}
+                        onClick={() => handleBulkAction('move', folder.id)}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-text-primary hover:bg-surface-secondary"
+                      >
+                        <folder.icon className="w-4 h-4" />
+                        {folder.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+            <button
+              onClick={() => handleBulkAction('delete')}
+              className="p-1.5 rounded hover:bg-error/20 transition-colors"
+              title="Löschen"
+            >
+              <Trash2 className="w-4 h-4 text-error" />
+            </button>
+            <button
+              onClick={clearSelection}
+              className="p-1.5 rounded hover:bg-accent/20 transition-colors ml-1"
+              title="Auswahl aufheben"
+            >
+              <X className="w-4 h-4 text-text-secondary" />
+            </button>
+          </div>
+        )}
 
         {/* Email/Drafts List */}
         <div className="flex-1 overflow-y-auto">
@@ -430,22 +738,55 @@ export default function EmailPage() {
             ) : (
               <div>
                 {emails.map((email) => (
-                  <button
+                  <div
                     key={email.id}
-                    onClick={() => handleSelectEmail(email)}
                     className={cn(
-                      "w-full p-3 text-left border-b border-border transition-colors",
+                      "w-full p-3 text-left border-b border-border transition-colors cursor-pointer group",
                       selectedEmail?.id === email.id
                         ? "bg-accent/10"
                         : "hover:bg-surface-secondary",
-                      !email.is_read && "bg-surface-secondary"
+                      !email.is_read && "bg-surface-secondary",
+                      selectedEmailIds.has(email.id) && "bg-accent/5"
                     )}
+                    onClick={() => handleSelectEmail(email)}
+                    onMouseEnter={(e) => {
+                      hoverTimeoutRef.current = setTimeout(() => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setHoveredEmailId(email.id);
+                        setHoverPosition({
+                          x: rect.right + 10,
+                          y: rect.top
+                        });
+                      }, 600);
+                    }}
+                    onMouseLeave={() => {
+                      clearTimeout(hoverTimeoutRef.current);
+                      setHoveredEmailId(null);
+                    }}
                   >
                     <div className="flex items-start gap-2">
+                      {/* Checkbox */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleEmailSelection(email.id);
+                        }}
+                        className={cn(
+                          'w-5 h-5 rounded flex items-center justify-center border-2 transition-all flex-shrink-0 mt-0.5',
+                          selectedEmailIds.has(email.id)
+                            ? 'bg-accent border-accent'
+                            : 'border-border opacity-0 group-hover:opacity-100 hover:border-accent/50'
+                        )}
+                      >
+                        {selectedEmailIds.has(email.id) && <Check className="w-3 h-3 text-white" />}
+                      </button>
+
+                      {/* Account color dot */}
                       <div
                         className="w-2 h-2 rounded-full mt-2 flex-shrink-0"
                         style={{ backgroundColor: getAccountColor(email.account_id) }}
                       />
+
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2 mb-0.5">
                           <span className={cn(
@@ -477,7 +818,7 @@ export default function EmailPage() {
                         ) : null}
                       </div>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             )}
@@ -631,17 +972,47 @@ export default function EmailPage() {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-text-secondary">
+          <div className="flex-1 flex flex-col items-center justify-center text-text-secondary px-4">
             <Mail className="w-16 h-16 mb-4 opacity-30" />
-            <p className="text-lg">Wähle eine E-Mail aus</p>
-            <p className="text-sm mt-1">oder schreibe eine neue Nachricht</p>
-            <button
-              onClick={handleNewEmail}
-              className="btn btn-primary mt-4"
-            >
-              <Plus className="w-4 h-4" />
-              Neue E-Mail
-            </button>
+            <p className="text-lg font-medium text-text-primary">Wähle eine E-Mail aus</p>
+            <p className="text-sm mt-1 mb-6">oder nutze eine der Quick-Actions</p>
+
+            {/* Quick Actions */}
+            <div className="flex flex-wrap gap-2 justify-center max-w-sm">
+              {stats.unread > 0 && (
+                <button
+                  onClick={() => {
+                    setShowStarredOnly(false);
+                    setSelectedFolder('INBOX');
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-surface-secondary hover:bg-border rounded-lg text-sm transition-colors"
+                >
+                  <Inbox className="w-4 h-4 text-accent" />
+                  <span>{stats.unread} Ungelesen</span>
+                </button>
+              )}
+              {stats.starred > 0 && (
+                <button
+                  onClick={() => setShowStarredOnly(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-surface-secondary hover:bg-border rounded-lg text-sm transition-colors"
+                >
+                  <Star className="w-4 h-4 text-yellow-500" />
+                  <span>{stats.starred} Markiert</span>
+                </button>
+              )}
+              <button
+                onClick={handleNewEmail}
+                className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 text-white rounded-lg text-sm transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Neue E-Mail</span>
+              </button>
+            </div>
+
+            {/* Tip */}
+            <p className="mt-8 text-xs opacity-50">
+              Tipp: Klicke auf eine E-Mail in der Liste, um sie zu lesen
+            </p>
           </div>
         )}
       </div>
@@ -703,6 +1074,53 @@ export default function EmailPage() {
             refetchDrafts();
           }}
         />
+      )}
+
+      {/* Email Hover Preview */}
+      {hoveredEmailId && (
+        <div
+          className="fixed z-50 w-80 bg-surface border border-border rounded-lg shadow-xl p-4 pointer-events-none"
+          style={{
+            left: Math.min(hoverPosition.x, window.innerWidth - 340),
+            top: Math.min(hoverPosition.y, window.innerHeight - 220)
+          }}
+        >
+          {(() => {
+            const email = emails.find(e => e.id === hoveredEmailId);
+            if (!email) return null;
+            return (
+              <>
+                <div className="flex items-center gap-3 mb-3">
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-white font-medium text-sm"
+                    style={{ backgroundColor: getAccountColor(email.account_id) }}
+                  >
+                    {(email.from_name || email.from_address || '?')[0].toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm text-text-primary truncate">
+                      {email.from_name || email.from_address}
+                    </p>
+                    <p className="text-xs text-text-secondary">
+                      {formatDate(email.date)}
+                    </p>
+                  </div>
+                </div>
+                <p className="font-medium text-sm text-text-primary mb-2 line-clamp-2">
+                  {email.subject || '(Kein Betreff)'}
+                </p>
+                <p className="text-sm text-text-secondary line-clamp-4">
+                  {email.snippet}
+                </p>
+                {email.has_attachments && (
+                  <div className="mt-3 pt-2 border-t border-border text-xs text-text-secondary flex items-center gap-1">
+                    <span>📎</span> Anhänge vorhanden
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </div>
       )}
     </div>
   );

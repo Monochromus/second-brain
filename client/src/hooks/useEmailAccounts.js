@@ -47,13 +47,15 @@ export function useEmailAccounts() {
     }
   };
 
-  const updateAccount = async (id, data) => {
+  const updateAccount = async (id, data, showToast = false) => {
     try {
       const response = await api.put(`/email-accounts/${id}`, data);
       setAccounts((prev) =>
         prev.map((a) => (a.id === id ? response.account : a))
       );
-      toast.success(response.message || 'Account aktualisiert');
+      if (showToast) {
+        toast.success(response.message || 'Account aktualisiert');
+      }
       return response.account;
     } catch (err) {
       toast.error(err.message);

@@ -27,7 +27,7 @@ router.get('/', asyncHandler(async (req, res) => {
     search
   } = req.query;
 
-  // Build query
+  // Build query - only show emails from active accounts
   let query = `
     SELECT
       e.id, e.account_id, e.uid, e.message_id, e.thread_id, e.folder,
@@ -36,7 +36,7 @@ router.get('/', asyncHandler(async (req, res) => {
       ea.email as account_email, ea.display_name as account_name, ea.color as account_color
     FROM emails e
     JOIN email_accounts ea ON e.account_id = ea.id
-    WHERE ea.user_id = ?
+    WHERE ea.user_id = ? AND ea.is_active = 1
   `;
   const params = [userId];
 
@@ -74,12 +74,12 @@ router.get('/', asyncHandler(async (req, res) => {
 
   const emails = db.prepare(query).all(...params);
 
-  // Get total count
+  // Get total count - only from active accounts
   let countQuery = `
     SELECT COUNT(*) as total
     FROM emails e
     JOIN email_accounts ea ON e.account_id = ea.id
-    WHERE ea.user_id = ?
+    WHERE ea.user_id = ? AND ea.is_active = 1
   `;
   const countParams = [userId];
 
@@ -126,7 +126,7 @@ router.get('/stats', asyncHandler(async (req, res) => {
       SUM(CASE WHEN is_starred = 1 THEN 1 ELSE 0 END) as starred
     FROM emails e
     JOIN email_accounts ea ON e.account_id = ea.id
-    WHERE ea.user_id = ? AND e.folder = 'INBOX'
+    WHERE ea.user_id = ? AND ea.is_active = 1 AND e.folder = 'INBOX'
   `).get(userId);
 
   res.json(stats);
